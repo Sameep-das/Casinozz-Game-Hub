@@ -25,6 +25,9 @@ Games Included
 
 **Client:** HTML, CSS, Vanilla JavaScript
 
+## Deployment Link
+
+- <a href="https://sameep-das.github.io/Casinozz-Game-Hub-/" target="_blank" title="Casinozz">Casinozz-game hub</a>
 
 ## Demo
 
