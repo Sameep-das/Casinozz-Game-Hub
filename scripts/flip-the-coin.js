@@ -9,7 +9,7 @@ import {
   setPropByClass,
 } from "./utils/dom_manipulation.js";
 
-import { getRandomInt } from "./utils/randomness.js";
+import { getRandomInt } from "./utils/helperFuncts.js";
 
 import {
   TOSS,
@@ -72,6 +72,11 @@ function defineToss(compMove) {
   return compMove === 0 ? TOSS.HEADS : TOSS.TAILS;
 }
 
+//EVALUATES RESULT //SIMPLE COMPARISON
+function getResult(userChoice, computerMove) {
+  return computerMove === userChoice ? true : false;
+}
+
 //BATCH DOM UPDATES
 const updateDOMByBatch = (compMove, result) => {
   renderComputerMove(compMove);
@@ -116,11 +121,6 @@ function renderResultPopup(isVictory) {
     addClass("defeat-popup", "show-popup");
     updateScore(false);
   }
-}
-
-//COMPUTES THE RESULT //SIMPLE COMAPRISON
-function getResult(userChoice, computerMove) {
-  return computerMove === userChoice ? true : false;
 }
 
 //RENDERS THE SCREEN AS PER THE RESULT
