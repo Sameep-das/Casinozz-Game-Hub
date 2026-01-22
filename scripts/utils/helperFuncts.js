@@ -29,3 +29,4 @@ export function getRandomInt(min, max) {
   // FALLBACK TO THIS IF THE TRY BLOCK DOES NOT RUN
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+

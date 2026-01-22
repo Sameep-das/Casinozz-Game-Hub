@@ -1,241 +1,236 @@
-import {getElementByClass, removeClass, addClass, addClassByID, removeClassByID, changeText} from './utils/dom_manipulation.js';
+import {
+  getElementByClass,
+  removeClass,
+  addClass,
+  addClassByID,
+  removeClassByID,
+  changeText,
+} from "./utils/dom_manipulation.js";
 
-const onReset = new Audio('../resources/welcome.mp3');
-const onTouch = new Audio('../resources/onTouch.mp3');
+import { getRandomInt } from "./utils/helperFuncts.js";
+import {
+  GAME_MODES,
+  popupAnimationDelayMS,
+  autoPlayDelayMS,
+} from "./utils/constants.js";
 
-let gameMode = 'Easy';
-let mineCellArr = [];
-const cellArr = document.querySelectorAll('.grid-cells');
-const modeArr = document.querySelectorAll('.mode-name');
-let count = 0;
+//UD
+const onReset = new Audio("../resources/welcome.mp3");
+const onTouch = new Audio("../resources/onTouch.mp3");
+
+const totalCells = 9; //TOTAL CELLS IN THE GRID
+let gameMode = GAME_MODES.EASY; //DEFAULT GAME MODE
+let mineCellArr = []; //ARRAY TO HOLD THE MINE CELL INDICES
+let userSelectCells = []; //ARRAY TO HOLD THE USER SELECTED CELL INDICES
+const cellArr = document.querySelectorAll(".grid-cells");
+const modeArr = document.querySelectorAll(".mode-name");
+
+//MULTIPLIER TABLE
 let multiplier = {
-  'Easy' : ['0x', '1.2x', '1.4x', '1.6x', '1.9x', '2.3x', '2.6x', '2.9x', '3.5x'],
-  'Medium' : ['0x', '1.3x', '1.7x', '2.0x', '2.4x', '2.8x', '3.0x', '3.5x'],
-  'Hard' : ['0x', '1.5x', '2.0x', '2.5x', '3.0x', '3.5x', '4.0x']
+  EASY: ["0x", "1.2x", "1.4x", "1.6x", "1.9x", "2.3x", "2.6x", "2.9x", "3.5x"],
+  MEDIUM: ["0x", "1.3x", "1.7x", "2.0x", "2.4x", "2.8x", "3.0x", "3.5x"],
+  HARD: ["0x", "1.5x", "2.0x", "2.5x", "3.0x", "3.5x", "4.0x"],
 };
 
-export let score = {
-  wins : '0x'
+//SCORE OBJECT TO HOLD THE CURRENT WINNINGS
+let score = {
+  wins: "0x",
 };
 
+//ON FIRST RENDER -
+generateMineCell(gameMode);
 
+//FUNCTION TO CREATE A POOL OF UNIQUE RANDOM NUMBERS
+function createUniqueNumberPool(min, max, quantity) {
+  const set = new Set();
+  while (set.size < quantity) {
+    set.add(getRandomInt(min, max));
+  }
+  return set;
+}
 
+//LISTEN TO EACH MODE SELECTION
 modeArr.forEach((val, index) => {
-  modeArr[index].addEventListener('click', () => {
-    gameMode = modeArr[index].id;
-    removeClass('current-mode-name','green-result');
-    changeText('current-mode-name', gameMode);
+  modeArr[index].addEventListener("click", () => {
+    gameMode = modeArr[index].id.toUpperCase();
+    removeClass("current-mode-name", "green-result");
+    changeText("current-mode-name", gameMode);
     onTouch.play();
     resetGame();
   });
 });
 
-document.body
-  .addEventListener('keydown', (event) => {
-    if(event.key === 'e' || event.key === 'E'){
-      gameMode = 'Easy';
-      removeClass('current-mode-name','green-result');
-      changeText('current-mode-name', gameMode);
-      resetGame();
-    }
-    else if(event.key === 'm' || event.key === 'M'){
-      gameMode = 'Medium';
-      removeClass('current-mode-name','green-result');
-      changeText('current-mode-name', gameMode);
-      resetGame();
-    }
-    else if(event.key === 'h' || event.key === 'H'){
-      gameMode = 'Hard';
-      removeClass('current-mode-name','green-result');
-      changeText('current-mode-name', gameMode);
-      resetGame();
-    }
-    else if(event.key === 'Enter'){
-      handleWithdraw();
-    }
-  });
-
-document.querySelector('.withdraw-btn')
-  .addEventListener('click', () => {
+//LISTEN TO KEYBOARD EVENTS FOR MODE SELECTION AND WITHDRAWAL
+document.body.addEventListener("keydown", (event) => {
+  if (event.key === "e" || event.key === "E") {
+    gameMode = GAME_MODES.EASY;
+    removeClass("current-mode-name", "green-result");
+    changeText("current-mode-name", GAME_MODES.EASY);
+    resetGame();
+  } else if (event.key === "m" || event.key === "M") {
+    gameMode = GAME_MODES.MEDIUM;
+    removeClass("current-mode-name", "green-result");
+    changeText("current-mode-name", GAME_MODES.MEDIUM);
+    resetGame();
+  } else if (event.key === "h" || event.key === "H") {
+    gameMode = GAME_MODES.HARD;
+    removeClass("current-mode-name", "green-result");
+    changeText("current-mode-name", GAME_MODES.HARD);
+    resetGame();
+  } else if (event.key === "Enter") {
     handleWithdraw();
-  });
+  }
+});
 
-document.querySelector('.js-generate')
-  .addEventListener('click', () => {
-    if(!userSelectCells.length) generateMineCell();
-    else changeText('current-mode-name', 'Withdraw This Game!')
-  });
+//LISTEN TO THE WITHDRAW BUTTON
+document.querySelector(".withdraw-btn").addEventListener("click", () => {
+  handleWithdraw();
+});
 
-let userSelectCells = []
+//LISTEN TO THE GENERATE BUTTON
+document.querySelector(".js-generate").addEventListener("click", () => {
+  if (userSelectCells.length === 0) generateMineCell(gameMode);
+  else changeText("current-mode-name", "Withdraw This Game!");
+});
+
+//LISTEN TO EACH CELL CLICK
 cellArr.forEach((val, index) => {
-  cellArr[index].addEventListener('click', () => {
+  cellArr[index].addEventListener("click", () => {
     let selectID = parseInt(cellArr[index].id);
-      if(!userSelectCells.includes(selectID)){
-        userSelectCells.push(selectID);
-        onTouch.play();
-        
-        playMTG(selectID);
+    onTouch.play();
+    let result = getResult(selectID);
+    if (!userSelectCells.includes(selectID)) {
+      userSelectCells.push(selectID);
+      if (result) {
+        renderAtVictory(selectID);
+      } else {
+        renderAtDefeat(selectID);
       }
-      else{
-        removeClass('current-mode-name','green-result');
-        changeText('current-mode-name', 'Please Select Other Boxes');
-      }
+    } else {
+      removeClass("current-mode-name", "green-result");
+      changeText("current-mode-name", "Please Select Other Boxes");
+    }
   });
 });
 
-function compChoice(){
-  let randomNum = Math.random() * 100;
-  return parseInt(randomNum % 9);
-}
-
-function generateMineCell(){
-  mineCellArr = [];
+//GENERATES THE MINE CELLS BASED ON THE SELECTED GAME MODE
+function generateMineCell(gameMode) {
   //In Easy mode only one mine will be present
-  if(gameMode === 'Easy'){
-    mineCellArr.push(compChoice());
+  if (gameMode === GAME_MODES.EASY) {
+    const mineCells = createUniqueNumberPool(0, 8, 1);
+    mineCellArr = [...mineCells];
   }
   //In Medium mode the mineCellArr would contain 2 discrete indices representing the mines
-  else if(gameMode === 'Medium'){
-    mineCellArr.push(compChoice());
-    let ind1 = compChoice();
-    if(!mineCellArr.includes(ind1)){
-      mineCellArr.push(ind1);
-    }
-    else{
-      if(ind1 === 8){
-        mineCellArr.push(ind1 - 2);
-      }
-      else{
-        mineCellArr.push(ind1 + 1);
-      }
-    }
+  else if (gameMode === GAME_MODES.MEDIUM) {
+    const mineCells = createUniqueNumberPool(0, 8, 2);
+    mineCellArr = [...mineCells];
   }
   //In Hard mode the mineCellArr would contain 3 discrete indices representing the mines
-  else if(gameMode === 'Hard'){
-    mineCellArr.push(compChoice());
-    let ind1 = compChoice();
-    let ind2 = compChoice();
-    if(!mineCellArr.includes(ind1)){
-      mineCellArr.push(ind1);
-    }
-    else{
-      if(ind1 === 8){
-        mineCellArr.push(ind1 - 2);
-      }
-      else{
-        mineCellArr.push(ind1 + 1);
-      }
-    }
-    if(!mineCellArr.includes(ind2)){
-      mineCellArr.push(ind2);
-    }
-    else{
-      let sum = mineCellArr[0] + mineCellArr[1];
-      let diff = Math.max(...mineCellArr) - Math.min(...mineCellArr);
-      if(diff === 1){
-        if(sum === 15){
-          mineCellArr.push((compChoice()%5));
-        }
-        else if(sum === 1){
-          mineCellArr.push((compChoice() * 3) + 2);
-        }
-        else{
-          mineCellArr.push(Math.max(...mineCellArr) + 1);
-        }
-      }
-      else{
-        mineCellArr.push(Math.min(...mineCellArr) + 1);
-      }
-    }
+  else if (gameMode === GAME_MODES.HARD) {
+    const mineCells = createUniqueNumberPool(0, 8, 3);
+    mineCellArr = [...mineCells];
   }
 }
 
-function playMTG(userChoice){
-  removeClass('current-mode-name','green-result');
-  changeText('current-mode-name', gameMode);
-  if(mineCellArr.includes(userChoice)){
-    defeatLogic(userChoice);
-  }
-  else{
-    victoryLogic(userChoice);
-  }
+//EVALUATES RESULT //CHECKS IF THE USER SELECTED CELL IS A MINE OR NOT
+function getResult(userChoice) {
+  return !mineCellArr.includes(userChoice);
 }
 
-function victoryLogic(userChoice){
-  count += 1;
-  addClassByID(`${userChoice}`, 'gold-cell');
-  score.wins = multiplier[`${gameMode}`][count];
-  changeText('score', score.wins);
-  changeText('victory-popup', score.wins);
-  
+//SHOW VICTORY POPUP
+function showVictoryPopup() {
   setTimeout(() => {
-    removeClass('victory-popup', 'show-popup');
-  }, 500);
-  addClass('victory-popup', 'show-popup');
+    removeClass("victory-popup", "show-popup");
+  }, popupAnimationDelayMS);
+  addClass("victory-popup", "show-popup");
+}
 
-  if(gameMode === 'Easy' && count === 8){
+//SHOW DEFEAT POPUP
+function showDefeatPopup() {
+  setTimeout(() => {
+    removeClass("defeat-popup", "show-popup");
+  }, popupAnimationDelayMS);
+  addClass("defeat-popup", "show-popup");
+}
+
+//ALERT AT VICTORY BY CHANGING TEXT AND COLOR
+function victoryAlert() {
+  addClass("current-mode-name", "green-result");
+  changeText("current-mode-name", "Victory");
+}
+
+//ALERT AT DEFEAT BY CHANGING TEXT AND COLOR
+function defeatAlert() {
+  removeClass("current-mode-name", "green-result");
+  changeText("current-mode-name", "Oops! Deafeat");
+}
+
+//RENDER AT VICTORY
+function renderAtVictory(userChoice) {
+  // count += 1;
+  let currCount = userSelectCells.length;
+  let mineCount = mineCellArr.length;
+  score.wins = multiplier[`${gameMode}`][currCount];
+  addClassByID(`${userChoice}`, "gold-cell");
+  changeText("score", score.wins);
+  changeText("victory-popup", score.wins);
+  showVictoryPopup();
+  let selectedAllCells = totalCells - mineCount === currCount;
+  if (
+    (gameMode === GAME_MODES.EASY && selectedAllCells) ||
+    (gameMode === GAME_MODES.MEDIUM && selectedAllCells) ||
+    (gameMode === GAME_MODES.HARD && selectedAllCells)
+  ) {
     setTimeout(() => {
       resetGame();
-    },800);
-    addClass('current-mode-name','green-result')
-    changeText('current-mode-name', 'Victory');
-  }
-  else if(gameMode === 'Medium' && count === 7){
-    
-    setTimeout(() => {
-      resetGame();
-    },800);
-    addClass('current-mode-name','green-result')
-    changeText('current-mode-name', 'Victory');
-  }
-  else if(gameMode === 'Hard' && count === 6){
-    
-    setTimeout(() => {
-      resetGame();
-    },800);
-    addClass('current-mode-name','green-result')
-    changeText('current-mode-name', 'Victory');
+    }, autoPlayDelayMS);
+    victoryAlert();
   }
 }
 
-function defeatLogic(){
-
+//RENDER AT DEFEAT
+function renderAtDefeat() {
   mineCellArr.forEach((val) => {
-    addClassByID(`${val}`, 'mine-cell');
-  })
+    addClassByID(`${val}`, "mine-cell");
+  });
+  showDefeatPopup();
   setTimeout(() => {
     resetGame();
-  },800);
-  removeClass('current-mode-name','green-result')
-  changeText('current-mode-name', 'Oops! Deafeat');
-  addClass('defeat-popup', 'show-popup');
-  
+  }, autoPlayDelayMS);
+  defeatAlert();
 }
 
-function resetGame(){
-  count = 0;
-  removeClass('current-mode-name','green-result')
-  changeText('current-mode-name', gameMode);
-  score.wins = '0x';
-  changeText('score', score.wins);
-  removeClass('defeat-popup', 'show-popup');
-  removeClass('victory-popup', 'show-popup');
+//CLEAR ALL THE CELLS
+function clearCells() {
   userSelectCells.forEach((val) => {
-    removeClassByID(`${val}`, 'gold-cell');
+    removeClassByID(`${val}`, "gold-cell");
   });
   mineCellArr.forEach((val) => {
-    removeClassByID(`${val}`, 'mine-cell');
+    removeClassByID(`${val}`, "mine-cell");
   });
+}
+
+//RESET THE GAME TO INITIAL STATE
+function resetGame() {
+  score.wins = multiplier[`${gameMode}`][0];
+  requestAnimationFrame(() => {
+    removeClass("current-mode-name", "green-result");
+    removeClass("defeat-popup", "show-popup");
+    removeClass("victory-popup", "show-popup");
+    changeText("current-mode-name", gameMode);
+    changeText("score", score.wins);
+  });
+  clearCells();
   mineCellArr = [];
   userSelectCells = [];
-  generateMineCell();
+  generateMineCell(gameMode);
 }
 
-function handleWithdraw(){
+//HANDLE THE WITHDRAW FUNCTIONALITY
+function handleWithdraw() {
   setTimeout(() => {
     resetGame();
-  }, 800);
-  addClass('current-mode-name','green-result')
-  changeText('current-mode-name', 'Victory');
+  }, autoPlayDelayMS);
   onReset.play();
+  victoryAlert();
 }
