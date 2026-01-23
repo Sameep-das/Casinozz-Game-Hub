@@ -102,9 +102,9 @@ let option3 = document.getElementById("opt3");
 
 function choicesArrGenerator() {
   choiceProvidedArr = [];
-  if (mode === "Hard") {
+  if (mode === GAME_MODES.HARD) {
     choiceProvidedArr.push(compChoice());
-  } else if (mode === "Medium") {
+  } else if (mode === GAME_MODES.MEDIUM) {
     choiceProvidedArr.push(compChoice());
     let ind1 = compChoice();
     let ind2 = compChoice();
@@ -138,10 +138,10 @@ function choicesArrGenerator() {
 function fillOptions() {
   choicesArrGenerator();
   correctOptGenerator();
-  if (mode === "Easy") {
+  if (mode === GAME_MODES.EASY) {
     option1.innerText = choiceProvidedArr[0];
     option3.innerText = choiceProvidedArr[1];
-  } else if (mode === "Medium") {
+  } else if (mode === GAME_MODES.MEDIUM) {
     option1.innerText = choiceProvidedArr[0];
     option2.innerText = choiceProvidedArr[1];
     option3.innerText = choiceProvidedArr[2];
@@ -149,9 +149,9 @@ function fillOptions() {
 }
 
 function correctOptGenerator() {
-  if (mode === "Hard") {
+  if (mode === GAME_MODES.HARD) {
     correctOpt = choiceProvidedArr[0];
-  } else if (mode === "Medium") {
+  } else if (mode === GAME_MODES.MEDIUM) {
     let correctIndex = parseInt((Math.random() * 10) % 2);
     correctOpt = choiceProvidedArr[correctIndex];
   } else {
@@ -163,16 +163,17 @@ function correctOptGenerator() {
 let gameResult = document.querySelector(".game-result");
 
 function playGTN() {
-  if (mode === "Hard") {
-    option2.innerText = correctOpt;
-  }
   if (correctOpt === parseInt(userInputVal.value)) {
     score.wins += 1;
     gameResult.classList.add("green-result");
     gameResult.innerText = "Victory";
   } else {
     gameResult.classList.remove("green-result");
-    gameResult.innerText = "Defeat";
+    if (mode !== GAME_MODES.HARD) {
+      gameResult.innerText = "Defeat";
+    } else {
+      gameResult.innerText = "Defeat correct was  " + correctOpt;
+    }
   }
   localStorage.setItem("gtnScore", JSON.stringify(score));
   changeText("score", score.wins);
@@ -182,15 +183,15 @@ function playGTN() {
 }
 
 function handleMode(mode) {
-  if (mode === "Hard") {
+  if (mode === GAME_MODES.HARD) {
     option2.innerText = "";
     choiceProvidedArr = [];
-    option2.classList.remove("choices-visibility");
+    option2.classList.add("choices-visibility");
     option1.classList.add("choices-visibility");
     option3.classList.add("choices-visibility");
     fillOptions();
     pausePlay();
-  } else if (mode === "Easy") {
+  } else if (mode === GAME_MODES.EASY) {
     option3.innerText = "";
     option1.innerText = "";
     choiceProvidedArr = [];
@@ -222,7 +223,7 @@ function handleReset() {
     };
   }
   changeText("score", score.wins);
-  mode = "Medium";
+  mode = GAME_MODES.MEDIUM;
   handleMode(mode);
   gameResult.innerText = "";
   fillOptions();
@@ -236,7 +237,7 @@ function handleAutoPlay() {
   let autoPlayMove;
   if (!isAutoPlay) {
     document.querySelector(".js-auto-play").innerText = "Pause Play";
-    if (mode === "Easy") {
+    if (mode === GAME_MODES.EASY) {
       intervalId = setInterval(() => {
         onTouch.play();
         let i = parseInt((Math.random() * 10) % 2);
@@ -245,7 +246,7 @@ function handleAutoPlay() {
         userSliderVal.value = autoPlayMove;
         playGTN();
       }, 1500);
-    } else if (mode === "Medium") {
+    } else if (mode === GAME_MODES.MEDIUM) {
       intervalId = setInterval(() => {
         onTouch.play();
         let i = parseInt((Math.random() * 10) % 3);
