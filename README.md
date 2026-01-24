@@ -22,7 +22,7 @@ Casinozz is a game hub which includes various single player games in different g
 
 ## Deployment Link
 
-- <a href="https://sameep-das.github.io/Casinozz-Game-Hub-/" target="_blank" title="Casinozz">Casinozz-game hub</a>
+- <a href="https://sameep-das.github.io/Casinozz-Game-Hub/" target="_blank" title="Casinozz">Casinozz-game hub</a>
 
 ## API Documentation
 
