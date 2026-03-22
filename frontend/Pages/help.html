@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help & Guidelines | Casinozz</title>
+    <link rel="stylesheet" href="../CSS-FILES/casino-style.css">
+    
+    <script src="../scripts/config.js"></script>
+</head>
+<body>
+    <div class="whole-flex flex-col">
+        <header class="header">
+            <nav class="nav-bar flex-row">
+                <a href="../index.html" class="logo">Casinozz</a>
+                <ul class="nav-list flex-row">
+                    <li><a href="../index.html" class="nav-link">Home</a></li>
+                    <li><a href="../analytics.html" class="nav-link">Analytics</a></li>
+                    <li><a href="help.html" class="nav-link" style="color:orange;">Help</a></li>
+                    <li class="auth-control"><a href="auth.html" class="nav-link login-nav-btn">Login</a></li>
+                </ul>
+            </nav>
+            <main class="help-main-flex">
+                <div class="help-container">
+                    <h1 class="heading help-title">Casinozz Gameplay & AI Guide</h1>
+                    
+                    <h2>Our Smart AI Features</h2>
+                    <p>Casinozz v2.0 is enhanced with Machine Learning to analyze your actions, predict your next moves, and generate context-aware hints. Our Python servers aggregate anonymous telemetry locally while Google's Gemini AI speaks back to you securely!</p>
+                    
+                    <h2>Game Rules</h2>
+                    <ul>
+                        <li><strong>Rock Paper Scissors:</strong> The ultimate classic. We analyze your pick frequency!</li>
+                        <li><strong>Mine The Gold:</strong> Inspired by Minesweeper. Pick safe tiles to compound your multiplier. Our ML algorithms profile your exact risk threshold here.</li>
+                        <li><strong>Guess The Number:</strong> A classic number matching logic game.</li>
+                        <li><strong>Flip The Coin:</strong> A pure luck game tracked across complex Streak Profiles.</li>
+                    </ul>
+
+                    <h2>Account & Profile Stats</h2>
+                    <p>Creating an account lets you access the <strong>Global Analytics</strong> tab! Our K-Means clustering algorithm evaluates your choices to map you against standard casino player profiles (e.g., Cautious Analyst vs. High-Risk Racer) based on the math models.</p>
+                
+                    <!-- Bug Report Section -->
+                    <div class="bug-form-container" id="bug-report">
+                        <h2 class="bug-form-heading">Report a Bug</h2>
+                        <p class="bug-form-desc">If you encounter an issue, please send us a report with your log file attached!</p>
+                        
+                        <form action="https://formsubmit.co/sameepdasxi@gmail.com" method="POST" enctype="multipart/form-data" class="bug-form">
+                            <input type="hidden" name="_captcha" value="false">
+                            <input type="hidden" name="_next" value="http://localhost:8080/Pages/help.html">
+                            <div class="bug-input-group">
+                                <label class="bug-label">Your Email Address:</label>
+                                <input type="email" name="UserEmail" required placeholder="you@example.com" class="bug-input">
+                            </div>
+                            
+                            <div class="bug-input-group">
+                                <label class="bug-label">Bug Description:</label>
+                                <textarea name="Description" rows="5" required placeholder="What went wrong?" class="bug-input"></textarea>
+                            </div>
+
+                            <div class="bug-input-group">
+                                <label class="bug-label">Attach Log File (.txt, .json, .log):</label>
+                                <input type="file" name="LogAttachment" accept=".txt,.json,.log" class="bug-file-input">
+                            </div>
+
+                            <button type="submit" class="btn btn-fill bug-submit-btn">Submit Bug Report</button>
+                        </form>
+                    </div>
+
+                </div>
+            </main>
+        </header>
+    </div>
+    <script src="../scripts/nav.js"></script>
+</body>
+</html>

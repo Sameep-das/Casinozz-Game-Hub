@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "name": "casinozz-frontend",
+  "routes": [
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+}

@@ -21,6 +21,28 @@ import {
 const onReset = new Audio("../resources/welcome.mp3");
 const onTouch = new Audio("../resources/onTouch.mp3");
 
+const tracker = new CasinozzTracker('coin');
+tracker.startSession('easy');
+
+// ── Adaptive AI State ─────────────────────────────────────
+const ML_BASE = window.CASINOZZ_ML || 'http://localhost:5001';
+let playerCoinHistory = [];
+let currentCoinMode = 'easy';
+
+async function fetchAiCoin(userChoice) {
+  playerCoinHistory.push(userChoice);
+  if (playerCoinHistory.length > 20) playerCoinHistory.shift();
+  try {
+    const res = await fetch(`${ML_BASE}/ml/ai_move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game: 'coin', last_moves: playerCoinHistory, difficulty: currentCoinMode })
+    });
+    const data = await res.json();
+    return data.ai_choice || (getRandomInt(0,1) === 0 ? TOSS.HEADS : TOSS.TAILS);
+  } catch(e) { return getRandomInt(0,1) === 0 ? TOSS.HEADS : TOSS.TAILS; }
+}
+
 //LOCAL STORAGE SAVES AN OBJECT CALLED SCORE WITH
 // OBJECT NAME = SCORE AND MEMBER IS WINS, INITIALLY SET TO 0
 let score = JSON.parse(localStorage.getItem("ftpScore"));
@@ -35,19 +57,19 @@ if (!score) {
 //GET THE INPUT FROM THE USER (HEADS OR TAILS)
 
 let tailInput = getElementByClass("js-tail-input");
-//LISTEN TO THE USER INPUT FOR TAILS
-tailInput.addEventListener("click", () => {
-  const compMove = defineToss(getRandomInt(0, 1));
+tailInput.addEventListener("click", async () => {
+  const compMove = await fetchAiCoin(TOSS.TAILS);
   let result = getResult(TOSS.TAILS, compMove);
+  tracker.logEvent('result', { playerChoice: TOSS.TAILS, cpuChoice: compMove, outcome: result ? 'win' : 'loss' });
   updateDOMByBatch(compMove, result);
   onTouch.play();
 });
 
 let headInput = getElementByClass("js-head-input");
-//LISTEN TO THE USER INPUT FOR HEADS
-headInput.addEventListener("click", () => {
-  const compMove = defineToss(getRandomInt(0, 1));
+headInput.addEventListener("click", async () => {
+  const compMove = await fetchAiCoin(TOSS.HEADS);
   let result = getResult(TOSS.HEADS, compMove);
+  tracker.logEvent('result', { playerChoice: TOSS.HEADS, cpuChoice: compMove, outcome: result ? 'win' : 'loss' });
   updateDOMByBatch(compMove, result);
   onTouch.play();
 });
