@@ -1,47 +1,36 @@
-import mysql.connector
 
-def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost", user="root", password="", database="casinozz_v2"
-    )
+# No DB connection needed — pure compute
+# We use the features passed from Node (global_moves + last_moves)
 
-COUNTERS = { 'rock': 'paper', 'paper': 'scissors', 'scissors': 'rock' }
+COUNTERS = { 'rock': 'paper', 'paper': 'scissors', 'scissors': 'rock', 
+            'ROCK': 'PAPER', 'PAPER': 'SCISSORS', 'SCISSORS': 'ROCK' }
 
-def predict_rps(last_moves):
-    # last_moves e.g. ['rock', 'paper', 'rock', 'rock']
-    if len(last_moves) < 2:
-        return { 'recommended_move': 'paper', 'confidence': 0.33, 'model': 'frequency' }
-
-    counts = { 'rock': 0, 'paper': 0, 'scissors': 0 }
-    
-    # Try to calculate from DB for all players' histories if not enough in current session
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT payload FROM events WHERE event_type='result' ORDER BY id DESC LIMIT 100")
-        rows = cursor.fetchall()
-        import json
-        db_moves = [json.loads(r['payload'])['playerChoice'] for r in rows if 'playerChoice' in json.loads(r['payload'])]
+def predict_rps(features):
+    """
+    Standardize to take the list of features (moves) from the backend.
+    features is expected to be a list of player moves.
+    """
+    if not isinstance(features, list):
+        return { 'recommended_move': 'PAPER', 'confidence': 0.33, 'model': 'fallback' }
         
-        # simple bigram frequency
-        seq = db_moves + last_moves
-        for i in range(len(seq) - 1):
-            if seq[i] == last_moves[-1]:
-                counts[seq[i+1]] += 1
-                
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print("DB error in rps_model:", e)
-        # Fallback to just last_moves frequency if DB fails
-        for i in range(len(last_moves) - 1):
-            if last_moves[i] == last_moves[-1]:
-                counts[last_moves[i+1]] += 1
+    last_moves = [m.upper() for m in features]
+    
+    if len(last_moves) < 2:
+        return { 'recommended_move': 'PAPER', 'confidence': 0.33, 'model': 'frequency' }
+
+    counts = { 'ROCK': 0, 'PAPER': 0, 'SCISSORS': 0 }
+    
+    # Simple bigram frequency from the provided features
+    # (Node already sends up to 300 global moves + session moves)
+    last = last_moves[-1]
+    for i in range(len(last_moves) - 1):
+        if last_moves[i] == last and last_moves[i+1] in counts:
+            counts[last_moves[i+1]] += 1
 
     total = sum(counts.values())
     if total == 0:
         import random
-        rnd = random.choice(['rock', 'paper', 'scissors'])
+        rnd = random.choice(['ROCK', 'PAPER', 'SCISSORS'])
         return { 'recommended_move': COUNTERS[rnd], 'confidence': 0.33, 'model': 'random' }
 
     predicted_next = max(counts, key=counts.get)

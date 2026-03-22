@@ -7,8 +7,13 @@ Security:
   3. No DB access (pure compute)
 """
 import os
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
+# Load environment variables from .env file
+load_dotenv()
+
 from models.rps_model import predict_rps
 from models.mine_model import predict_mine
 from clustering import cluster_player

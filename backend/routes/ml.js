@@ -14,7 +14,8 @@ const router  = express.Router();
 const axios   = require('axios');
 const db      = require('../db');
 
-const ML_URL = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001';
+const ML_URL     = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001';
+const ML_TIMEOUT = parseInt(process.env.ML_SERVICE_TIMEOUT) || 8000;
 
 // Internal API key for securing Node → ML communication
 const ML_HEADERS = {};
@@ -149,7 +150,7 @@ router.post('/ai_move', async (req, res) => {
         const mlRes = await axios.post(
             `${ML_URL}/ai_move`,
             { game, features },
-            { timeout: 8000, headers: ML_HEADERS }
+            { timeout: ML_TIMEOUT, headers: ML_HEADERS }
         );
         res.json(mlRes.data);
 
@@ -170,12 +171,20 @@ router.post('/predict/:game', async (req, res) => {
         const mlRes = await axios.post(
             `${ML_URL}/predict`,
             { game, features: req.body.features || [] },
-            { timeout: 8000, headers: ML_HEADERS }
+            { timeout: ML_TIMEOUT, headers: ML_HEADERS }
         );
         res.json(mlRes.data);
     } catch (err) {
         console.error('[ml.js] predict error:', err.message);
-        res.status(500).json({ error: 'ML service unavailable' });
+        // Fallback for predictions (hints)
+        const { game } = req.params;
+        const fallbacks = {
+            rps:   { recommended_move: 'PAPER', confidence: 0.33, model: 'fallback' },
+            mine:  { withdraw_now: false, confidence: 0.5, model: 'fallback' },
+            coin:  { recommended_move: 'HEADS', confidence: 0.5, model: 'fallback' },
+            guess: { recommended_move: 0, confidence: 0.25, model: 'fallback' }
+        };
+        res.json(fallbacks[game] || { error: 'ML service unavailable', strategy: 'error_fallback' });
     }
 });
 
