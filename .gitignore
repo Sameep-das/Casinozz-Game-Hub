@@ -1,0 +1,33 @@
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+ml/saved_models/
+
+# ── Node.js ───────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Environment / Secrets (NEVER commit these) ────────────────
+.env
+.env.local
+.env.production
+backend/.env
+ml/.env
+
+# ── OS Junk ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── Misc ──────────────────────────────────────────────────────
+*.log
+*.docx
+plan_output.txt

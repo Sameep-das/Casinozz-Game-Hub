@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Signup | Casinozz</title>
+    <link rel="stylesheet" href="../CSS-FILES/casino-style.css">
+    
+    <script src="../scripts/config.js"></script>
+</head>
+<body>
+    <div class="whole-flex flex-col">
+        <header class="header">
+            <nav class="nav-bar flex-row">
+                <a href="../index.html" class="logo">Casinozz</a>
+                <ul class="nav-list flex-row">
+          <li><a href="../index.html" class="nav-link">Home</a></li>
+          <li><a href="../analytics.html" class="nav-link">Analytics</a></li>
+          <li><a href="../Pages/help.html" class="nav-link">Help</a></li>
+          <li class="auth-control"><a href="../Pages/auth.html" class="nav-link login-nav-btn">Login</a></li>
+        </ul>
+            </nav>
+            <main class="auth-container">
+                <div class="auth-box">
+                    <h2 id="auth-title">Login to Casinozz</h2>
+                    
+                    <div class="auth-input-group">
+                        <label>Username</label>
+                        <input type="text" id="username" placeholder="Enter your username" required>
+                    </div>
+                    
+                    <div class="auth-input-group">
+                        <label>Password</label>
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                    </div>
+
+                    <button class="auth-btn" id="submit-btn" onclick="handleAuth()">Login</button>
+                    
+                    <p id="auth-error"></p>
+                    <p id="auth-success"></p>
+                    
+                    <p class="switch-mode" onclick="toggleMode()">
+                        Don't have an account? <span id="switch-text">Sign Up Here</span>
+                    </p>
+                </div>
+            </main>
+        </header>
+    </div>
+
+    <script src="../scripts/auth.js"></script>
+<script src="../scripts/nav.js"></script>
+</body>
+</html>

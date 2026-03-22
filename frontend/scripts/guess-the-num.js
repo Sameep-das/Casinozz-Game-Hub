@@ -4,6 +4,27 @@ import { GAME_MODES } from "./utils/constants.js";
 const onReset = new Audio("../resources/welcome.mp3");
 const onTouch = new Audio("../resources/onTouch.mp3");
 
+const tracker = new CasinozzTracker('guess');
+tracker.startSession('medium');
+
+// ── Adaptive AI State ─────────────────────────────────────
+const ML_BASE = window.CASINOZZ_ML || 'http://localhost:5001';
+let playerGuessHistory = [];
+let currentGuessMode = 'medium';
+
+async function fetchAiCorrectOpt(numOptions) {
+  try {
+    const res = await fetch(`${ML_BASE}/ml/ai_move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game: 'guess', last_moves: playerGuessHistory, difficulty: currentGuessMode })
+    });
+    const data = await res.json();
+    const idx = (typeof data.ai_choice === 'number') ? data.ai_choice : Math.floor(Math.random() * numOptions);
+    return Math.max(0, Math.min(idx, numOptions - 1));
+  } catch(e) { return Math.floor(Math.random() * numOptions); }
+}
+
 //SET MODE AS MEDIUM BY DEFAULT
 let mode = GAME_MODES.MEDIUM;
 let choiceProvidedArr = [];
@@ -30,16 +51,19 @@ document.querySelector(".js-generate").addEventListener("click", () => {
 
 document.getElementById("Easy").addEventListener("click", () => {
   mode = GAME_MODES.EASY;
+  tracker.startSession('easy');
   handleMode(GAME_MODES.EASY);
 });
 
 document.getElementById("Medium").addEventListener("click", () => {
   mode = GAME_MODES.MEDIUM;
+  tracker.startSession('medium');
   handleMode(GAME_MODES.MEDIUM);
 });
 
 document.getElementById("Hard").addEventListener("click", () => {
   mode = GAME_MODES.HARD;
+  tracker.startSession('hard');
   handleMode(GAME_MODES.HARD);
 });
 
@@ -148,22 +172,21 @@ function fillOptions() {
   }
 }
 
-function correctOptGenerator() {
-  if (mode === GAME_MODES.HARD) {
-    correctOpt = choiceProvidedArr[0];
-  } else if (mode === GAME_MODES.MEDIUM) {
-    let correctIndex = parseInt((Math.random() * 10) % 2);
-    correctOpt = choiceProvidedArr[correctIndex];
-  } else {
-    let correctIndex = parseInt((Math.random() * 10) % 3);
-    correctOpt = choiceProvidedArr[correctIndex];
-  }
+async function correctOptGenerator() {
+  const numOptions = (mode === GAME_MODES.HARD) ? 1 : (mode === GAME_MODES.MEDIUM) ? 3 : 2;
+  const aiIdx = await fetchAiCorrectOpt(numOptions);
+  correctOpt = choiceProvidedArr[Math.min(aiIdx, choiceProvidedArr.length - 1)];
 }
 
 let gameResult = document.querySelector(".game-result");
 
 function playGTN() {
-  if (correctOpt === parseInt(userInputVal.value)) {
+  let guessVal = parseInt(userInputVal.value);
+  playerGuessHistory.push(guessVal);
+  if (playerGuessHistory.length > 20) playerGuessHistory.shift();
+  let isWin = correctOpt === guessVal;
+  tracker.logEvent('result', { guess: guessVal, actual: correctOpt, playerGuess: guessVal, outcome: isWin ? 'win' : 'loss', mode: mode });
+  if (isWin) {
     score.wins += 1;
     gameResult.classList.add("green-result");
     gameResult.innerText = "Victory";

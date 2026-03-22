@@ -18,6 +18,33 @@ import {
 const onReset = new Audio("../resources/welcome.mp3");
 const onTouch = new Audio("../resources/onTouch.mp3");
 
+const tracker = new CasinozzTracker('rps');
+tracker.startSession('easy');
+
+// ── Adaptive AI State ─────────────────────────────────────
+const ML_BASE = window.CASINOZZ_ML || 'http://localhost:5001';
+let playerMoveHistory = [];
+let currentMode = 'easy'; // updated when mode is selected
+
+async function fetchAiMove(userChoice) {
+  playerMoveHistory.push(userChoice);
+  if (playerMoveHistory.length > 20) playerMoveHistory.shift();
+  try {
+    const res = await fetch(`${ML_BASE}/ml/ai_move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ game: 'rps', last_moves: playerMoveHistory, difficulty: currentMode })
+    });
+    const data = await res.json();
+    return data.ai_choice || randomRPS();
+  } catch(e) { return randomRPS(); }
+}
+
+function randomRPS() {
+  const c = ['ROCK','PAPER','SCISSORS'];
+  return c[Math.floor(Math.random() * 3)];
+}
+
 //CREATING OR FETCHING THE SCORE OBJECT IN OR FROM LOCAL STORAGE
 let score = JSON.parse(localStorage.getItem("rpsScore"));
 if (score === null) {
@@ -38,8 +65,8 @@ changeText(
 
 //LISTEN TO THE USER INPUT FOR ROCK
 let rckBtn = document.getElementById("rock");
-rckBtn.addEventListener("click", () => {
-  let compChoice = compChoiceGenerator(getRandomInt(0, 2));
+rckBtn.addEventListener("click", async () => {
+  let compChoice = await fetchAiMove(RPS_CHOICES.ROCK);
   let result = computeResult(RPS_CHOICES.ROCK, compChoice);
   callReqAnimationFrame(compChoice, RPS_CHOICES.ROCK, result);
   onTouch.play();
@@ -47,8 +74,8 @@ rckBtn.addEventListener("click", () => {
 
 //LISTEN TO THE USER INPUT FOR PAPER
 let pprBtn = document.getElementById("paper");
-pprBtn.addEventListener("click", () => {
-  let compChoice = compChoiceGenerator(getRandomInt(0, 2));
+pprBtn.addEventListener("click", async () => {
+  let compChoice = await fetchAiMove(RPS_CHOICES.PAPER);
   let result = computeResult(RPS_CHOICES.PAPER, compChoice);
   callReqAnimationFrame(compChoice, RPS_CHOICES.PAPER, result);
   onTouch.play();
@@ -56,8 +83,8 @@ pprBtn.addEventListener("click", () => {
 
 //LISTEN TO THE USER INPUT FOR SCISSOR
 let ssrBtn = document.getElementById("scissors");
-ssrBtn.addEventListener("click", () => {
-  let compChoice = compChoiceGenerator(getRandomInt(0, 2));
+ssrBtn.addEventListener("click", async () => {
+  let compChoice = await fetchAiMove(RPS_CHOICES.SCISSOR);
   let result = computeResult(RPS_CHOICES.SCISSOR, compChoice);
   callReqAnimationFrame(compChoice, RPS_CHOICES.SCISSOR, result);
   onTouch.play();
@@ -86,6 +113,11 @@ document.body.addEventListener("keydown", (event) => {
 
 //REQUEST ANIMATION FRAME FOR SMOOTH RENDERING
 const callReqAnimationFrame = (compChoice, userChoice, result) => {
+  let outcomeStr = 'tie';
+  if (result === RPS_RESULTS.VICTORY) outcomeStr = 'win';
+  else if (result === RPS_RESULTS.DEFEAT) outcomeStr = 'loss';
+  tracker.logEvent('result', { playerChoice: userChoice, cpuChoice: compChoice, outcome: outcomeStr });
+
   requestAnimationFrame(() => {
     renderCompChoice(compChoice);
     renderUserChoice(userChoice);

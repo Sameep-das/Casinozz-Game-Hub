@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Dashboard | Casinozz</title>
+
+  <link rel="stylesheet" href="./CSS-FILES/casino-style.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="scripts/config.js"></script>
+</head>
+<body>
+  <div class="whole-flex flex-col">
+    <header class="header">
+      <nav class="nav-bar flex-row">
+        <a href="index.html" class="logo">Casinozz</a>
+        <ul class="nav-list flex-row">
+          <li><a href="./index.html" class="nav-link">Home</a></li>
+          <li><a href="./analytics.html" class="nav-link">Analytics</a></li>
+          <li><a href="./Pages/help.html" class="nav-link">Help</a></li>
+          <li class="auth-control"><a href="./Pages/auth.html" class="nav-link login-nav-btn">Login</a></li>
+        </ul>
+      </nav>
+      <main class="dashboard-container">
+        <h1>Analytics & AI Dashboard</h1>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="simulation-tab">Simulation Engine</button>
+          <button class="tab-btn" data-tab="user-tab">Your Performance</button>
+        </div>
+        
+        <!-- Simulation Tab -->
+        <div id="simulation-tab" class="tab-content active">
+          <h2>Strategy Simulation Comparison</h2>
+          <div class="sim-controls">
+            <select id="sim-game">
+              <option value="rps">Rock Paper Scissors</option>
+              <option value="mine">Mine The Gold</option>
+              <option value="guess">Guess The Number</option>
+              <option value="coin">Flip The Coin</option>
+            </select>
+            <select id="sim-mode">
+              <option value="hard">Hard</option>
+              <option value="medium">Medium</option>
+              <option value="easy">Easy</option>
+            </select>
+            <button id="sim-fetch-btn" class="btn btn-fill">Load Results</button>
+            <span>Or run fresh batch:</span>
+            <button id="sim-run-btn" class="btn btn-unfill">Run 1000 Simulations</button>
+          </div>
+          <div class="chart-container-large">
+            <canvas id="simChart"></canvas>
+          </div>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Strategy</th>
+                <th>Win Rate</th>
+                <th>Avg Score</th>
+                <th>Details (Wins/Losses)</th>
+              </tr>
+            </thead>
+            <tbody id="sim-table-body">
+            </tbody>
+          </table>
+        </div>
+
+        <!-- User Performance Tab -->
+        <div id="user-tab" class="tab-content">
+          <h2>Your Overall Analysis</h2>
+          <div class="stats-cards flex-row">
+            <div class="stat-card-item">
+              <h3>Rounds Played</h3>
+              <p id="u-rounds" class="stat-val">Loading...</p>
+            </div>
+            <div class="stat-card-item">
+              <h3>Overall Win Rate</h3>
+              <p id="u-winrate" class="stat-val">Loading...</p>
+            </div>
+            <div class="stat-card-item">
+              <h3>AI Risk Profile</h3>
+              <p id="u-profile" class="stat-val-green">Analyzing...</p>
+            </div>
+          </div>
+          
+          <h2>Game-Wise Analysis</h2>
+          <div id="game-wise-container" class="game-wise-grid">
+              <!-- Dynamic cards injected by JS -->
+          </div>
+
+          <!-- AI Learning Curve Section -->
+          <h2 style="margin-top:40px;">AI Learning Curve</h2>
+          <p style="color:#aaa; font-size:1rem; margin-bottom:15px;">
+            Watch how the adaptive AI opponent improves over time — as you play more, it learns your patterns and your win rate trends downward while the AI's dominance grows.
+          </p>
+          <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap; align-items:center;">
+            <label style="color:#ccc;">Filter by game:</label>
+            <select id="learning-game-filter" style="padding:8px; border-radius:5px; border:none; font-size:1rem;">
+              <option value="">All Games</option>
+              <option value="rps">Rock Paper Scissors</option>
+              <option value="coin">Flip the Coin</option>
+              <option value="guess">Guess the Number</option>
+              <option value="mine">Mine the Gold</option>
+            </select>
+          </div>
+          <div class="chart-container-large">
+            <canvas id="learningChart"></canvas>
+          </div>
+          <p id="learning-note" style="color:#555; font-size:0.9rem; margin-top:8px; text-align:center;">Play more rounds to see the AI's learning curve grow!</p>
+        </div>
+      </main>
+    </header>
+  </div>
+  <script src="./scripts/analytics.js"></script>
+<script src="./scripts/nav.js"></script>
+</body>
+</html>
