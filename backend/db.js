@@ -10,9 +10,9 @@ if (process.env.DATABASE_URL) {
     poolConfig = {
         host:     u.hostname,
         port:     parseInt(u.port) || 3306,
-        user:     u.username,
-        password: u.password,
-        database: u.pathname.replace('/', ''),
+        user:     decodeURIComponent(u.username),
+        password: decodeURIComponent(u.password),
+        database: decodeURIComponent(u.pathname.replace('/', '')),
         ssl:      { rejectUnauthorized: false }, // Required for PlanetScale
         waitForConnections: true,
         connectionLimit: 10,
