@@ -10,5 +10,6 @@
  *   window.CASINOZZ_ML  = 'https://casinozz-ml.onrender.com';
  * ─────────────────────────────────────────────────────────────────────
  */
-window.CASINOZZ_API = 'http://localhost:3000/api';
-window.CASINOZZ_ML  = 'http://localhost:5001';
+window.CASINOZZ_API = window.CASINOZZ_API || 'http://localhost:3000/api';
+window.CASINOZZ_ML  = window.CASINOZZ_ML || 'http://localhost:5001';
+

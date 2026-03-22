@@ -1,56 +1,114 @@
 # Casinozz Game Hub - AI Enhanced v2.0
 
-Welcome to the AI-Enhanced version of Casinozz Game Hub! This project integrates an intelligent backend and machine-learning simulation engine to provide advanced analytics, predictive profiling, and AI-generated hints inside the classic vanilla JavaScript games.
+## Overview
+Casinozz Game Hub v2.0 is an intelligent gaming platform that integrates a Node.js backend with a Python-based machine learning service. The system provides advanced analytics, predictive profiling, and real-time AI-generated hints for a collection of classic JavaScript games.
 
 ## Features
 
-- **Classic Games:** Rock Paper Scissors, Mine The Gold, Guess The Number, Flip The Coin.
-- **AI Simulation Engine:** Runs pure JS background simulations to pit computer logic against games.
-- **Python ML Predictions:** Uses `scikit-learn` to analyze gameplay patterns and predict outcomes (e.g., Logistic Regression for Mine the Gold, Frequency analysis for RPS).
-- **Player K-Means Clustering:** Profiles players into 4 behavioral "Risk Profile" buckets using KMeans models.
-- **Generative AI Narrations:** Integrates Google Gemini Flash API to narrate predictive hints to the player in real-time.
-- **Analytics Dashboard:** Chart.js powered `analytics.html` page to review strategy efficiencies and player profiles.
+### Intelligent Game Mechanics
+- **Core Gaming Suite**: Includes Rock Paper Scissors, Mine The Gold, Guess The Number, and Flip The Coin.
+- **AI Simulation Engine**: Executes background simulations using pure JavaScript engines to analyze game mechanics and strategy efficiency.
+- **Generative AI Narrations**: Incorporates the Google Gemini Flash API to provide real-time predictive hints and narrations to players based on their current game state.
 
-## Technologies Used
+### Machine Learning Integration
+- **Predictive Modeling**: Utilizes scikit-learn for gameplay pattern analysis.
+    - **Logistic Regression**: Used in 'Mine the Gold' to predict the safety of a cell based on previous moves and difficulty.
+    - **Frequency Analysis & Markov Chains**: Used in 'Rock Paper Scissors' to predict player patterns.
+- **Behavioral Profiling**: Implements K-Means clustering to categorize players into four distinct behavioral risk profiles:
+    - High-Risk Racer
+    - Cautious Analyst
+    - Pattern Hunter
+    - Streak Chaser
 
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript, Chart.js
-- **Backend APIs:** Node.js, Express.js, Google Gemini API
-- **Machine Learning Service:** Python 3, Flask, scikit-learn, numpy, pandas
-- **Database:** MySQL
+### Security and Analytics
+- **Authentication**: Implements JSON Web Tokens (JWT) for secure user registration and login.
+- **Role-Based Access**: Protects sensitive analytics routes, ensuring users can only access their own performance data.
+- **Analytics Dashboard**: A centralized interface powered by Chart.js for reviewing player performance, strategy efficiency, and behavioral clusters.
 
----
+### System Flow
+1. **Frontend**: A vanilla JavaScript application that handles user interaction and real-time game logic.
+2. **Backend (Node.js)**: Acts as the central orchestrator. It manages user authentication (JWT), interacts with the MySQL database, and communicates with the Gemini API for hints.
+3. **ML Service (Python)**: A dedicated Flask-based microservice that handles heavy computational tasks, including model training (scikit-learn) and predictive move generation.
 
-## Setup & Run Instructions
+## Folder Structure
+- `backend/`: Node.js Express server, API routes, and database abstraction layer.
+- `ml/`: Python Flask service, machine learning models, and training scripts.
+- `frontend/`: Static web assets including HTML, CSS, and client-side JavaScript.
+- `database/`: SQL schema definitions and database initialization scripts.
 
-### 1. Database Setup
-1. Open MySQL Workbench.
-2. Create `casinozz_v2` database if not existing.
-3. Run the `schema.sql` script to structure the tables (`sessions`, `events`, `game_stats`, `simulation_results`, `player_clusters`).
+## Database Schema
 
-### 2. Node.js Backend
+### Users
+- `id`: Unique identifier for the user.
+- `username`: Unique username.
+- `password_hash`: Bcrypt-hashed password.
+- `created_at`: Timestamp of account creation.
+
+### Sessions
+- `id`: Unique session identifier.
+- `game`: Name of the game played (e.g., 'mine', 'rps').
+- `mode`: Difficulty level ('easy', 'medium', 'hard').
+- `session_key`: Unique string identifying the player's session.
+- `started_at`: Timestamp when the session began.
+
+### Events
+- `id`: Unique event identifier.
+- `session_id`: Reference to the parent session.
+- `event_type`: Category of the event (e.g., 'result', 'move').
+- `payload`: JSON object containing game-specific data.
+- `created_at`: Timestamp of the event.
+
+### Player Clusters
+- `id`: Unique identifier.
+- `session_key`: Reference to the player's session key.
+- `cluster_id`: Numeric identifier assigned by the K-Means model.
+- `profile_label`: Human-readable label for the behavioral cluster.
+- `feature_vec`: JSON representation of the features used for clustering.
+
+### Simulation Results
+- `id`: Unique identifier.
+- `game`: Game being simulated.
+- `strategy`: The algorithm used in the simulation.
+- `win_rate`: The calculated success rate for the strategy.
+
+## Setup and Installation
+
+### 1. Database Configuration
+1. Initialize a MySQL instance and create a database named `casinozz_v2`.
+2. Execute the `database/schema.sql` script to create the necessary table structures.
+
+### 2. Node.js Backend Setup
 1. Navigate to the `backend/` directory.
-2. Ensure you have installed dependencies: `npm install` (express, cors, mysql2, axios, dotenv, @google/generative-ai).
-3. Create a `.env` file in `backend/` mirroring `.env.example`:
-   ```env
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASSWORD=
-   DB_NAME=casinozz_v2
-   GEMINI_API_KEY=your_actual_gemini_key
-   ```
-4. Start the server: `node server.js`
-   Server will run on `http://localhost:3000`.
+2. Install dependencies: `npm install`.
+3. Configure environment variables in a `.env` file (see `.env.example`).
+4. Start the server: `node server.js`.
 
-### 3. Python ML Service
-1. Navigate to the `ml-service/` directory.
-2. Ensure Python dependencies are installed using `pip install -r requirements.txt`.
-3. Start the Flask server: `python app.py`
-   Service will run on `http://127.0.0.1:5001`.
-4. *Note:* Make sure to run `python train.py` at least once to generate the `.pkl` ML models before running predictions!
+### 3. Machine Learning Service Setup
+1. Navigate to the `ml/` directory.
+2. Install Python dependencies: `pip install -r requirements.txt`.
+3. Configure the `.env` file with the appropriate `DATABASE_URL`.
+4. Run the training pipeline: `python train.py`.
+5. Start the Flask service: `python app.py`.
 
-### 4. Running the Web App
-Simply open `index.html` or `analytics.html` in your favorite web browser (or serve it locally via Live Server). Use the UI to navigate the game collection. AI hints and statistics will populate automatically via the backend!
+### 4. Frontend Execution
+Serve the `frontend/` directory using a local web server (e.g., `python -m http.server 8080`).
 
----
+## API Documentation
 
-*Project implemented according to the Casinozz AI Integration Plan v2.0 Blueprint.*
+### Authentication
+- **POST /api/auth/register**: Register a new user account.
+- **POST /api/auth/login**: Authenticate a user and receive a JWT token.
+
+### Game Management
+- **POST /api/session/start**: Initialize a new game session.
+- **POST /api/event**: Log gameplay events and results.
+
+### AI and Machine Learning
+- **POST /api/ml/ai_move**: Request an AI-calculated move based on historical data.
+- **POST /api/ml/predict/:game**: Fetch model-based outcome predictions.
+- **GET /api/hint/:game**: Retrieve a Gemini-powered gameplay hint.
+
+### Analytics (Requires JWT)
+- **GET /api/analytics/user**: Retrieve comprehensive user-specific statistics.
+- **GET /api/analytics/ai_learning**: Fetch data for the user vs AI learning curve.
+- **POST /api/analytics/profile**: Categorize a player into a behavioral cluster.
