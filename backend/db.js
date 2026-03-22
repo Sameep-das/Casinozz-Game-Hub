@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 const mysql = require('mysql2/promise');
 
 // Support PlanetScale/Railway DATABASE_URL or individual env vars

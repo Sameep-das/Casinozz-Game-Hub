@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 const express   = require('express');
 const cors      = require('cors');
 const helmet    = require('helmet');
@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+console.log('DEBUG: Backend starting on PORT:', PORT);
 
 // ── 1. HELMET — secure HTTP headers ─────────────────────────────────────────
 app.use(helmet());
