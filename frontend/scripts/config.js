@@ -1,15 +1,10 @@
-/**
- * Casinozz Production Config
- * ─────────────────────────────────────────────────────────────────────
- * BEFORE DEPLOYING TO VERCEL:
- *   1. Replace CASINOZZ_API with your Railway backend URL
- *   2. Replace CASINOZZ_ML with your Render ML service URL
- *
- * Example:
- *   window.CASINOZZ_API = 'https://casinozz-backend.up.railway.app/api';
- *   window.CASINOZZ_ML  = 'https://casinozz-ml.onrender.com';
- * ─────────────────────────────────────────────────────────────────────
- */
-window.CASINOZZ_API = window.CASINOZZ_API || 'http://localhost:3000/api';
-window.CASINOZZ_ML  = window.CASINOZZ_ML || 'http://localhost:5001';
+const IS_PROD = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+window.CASINOZZ_API = IS_PROD 
+    ? 'https://casinozz-backend.onrender.com/api' 
+    : 'http://localhost:3000/api';
+
+window.CASINOZZ_ML = IS_PROD 
+    ? 'https://casinozz-game-hub.onrender.com' 
+    : 'http://localhost:5001';
 
