@@ -16,16 +16,16 @@ if (!JWT_SECRET) {
 }
 const SECRET = JWT_SECRET || 'casinozz_dev_only_secret_do_not_deploy';
 
-// Note: PlanetScale blocks runtime DDL. users table must exist via schema.sql import.
+// Note: Neon/PostgreSQL tables must exist via schema.sql import.
 // The CREATE TABLE below is kept as a local-dev safety net only.
 async function ensureUsersTable() {
     if (process.env.NODE_ENV !== 'production') {
         await db.query(`
             CREATE TABLE IF NOT EXISTS users (
-                id            INT AUTO_INCREMENT PRIMARY KEY,
+                id            SERIAL PRIMARY KEY,
                 username      VARCHAR(50)  UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
-                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at    TIMESTAMPTZ DEFAULT NOW()
             )
         `);
     }
@@ -39,15 +39,15 @@ router.post('/register', async (req, res) => {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
-        const [existing] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
+        const { rows: existing } = await db.query('SELECT * FROM users WHERE username = $1', [username]);
         if (existing.length > 0) return res.status(400).json({ error: 'Username already exists' });
 
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(password, salt);
 
-        const [result] = await db.query('INSERT INTO users (username, password_hash) VALUES (?, ?)', [username, hash]);
+        const { rows } = await db.query('INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id', [username, hash]);
         
-        const token = jwt.sign({ id: result.insertId, username }, SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ id: rows[0].id, username }, SECRET, { expiresIn: '7d' });
         res.json({ message: 'User registered successfully', token, username });
     } catch (err) {
         console.error('Registration error:', err);
@@ -61,7 +61,7 @@ router.post('/login', async (req, res) => {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
-        const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
+        const { rows: users } = await db.query('SELECT * FROM users WHERE username = $1', [username]);
         if (users.length === 0) return res.status(400).json({ error: 'Invalid username or password' });
 
         const user = users[0];

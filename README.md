@@ -27,7 +27,7 @@ Casinozz Game Hub v2.0 is an intelligent gaming platform that integrates a Node.
 
 ### System Flow
 1. **Frontend**: A vanilla JavaScript application that handles user interaction and real-time game logic.
-2. **Backend (Node.js)**: Acts as the central orchestrator. It manages user authentication (JWT), interacts with the MySQL database, and communicates with the Gemini API for hints.
+2. **Backend (Node.js)**: Acts as the central orchestrator. It manages user authentication (JWT), interacts with the PostgreSQL database (Neon), and communicates with the Gemini API for hints.
 3. **ML Service (Python)**: A dedicated Flask-based microservice that handles heavy computational tasks, including model training (scikit-learn) and predictive move generation.
 
 ## Folder Structure
@@ -73,9 +73,9 @@ Casinozz Game Hub v2.0 is an intelligent gaming platform that integrates a Node.
 
 ## Setup and Installation
 
-### 1. Database Configuration
-1. Initialize a MySQL instance and create a database named `casinozz_v2`.
-2. Execute the `database/schema.sql` script to create the necessary table structures.
+### 1. Database Configuration (Neon PostgreSQL)
+1. Create a new project on [Neon](https://neon.tech) and copy your `DATABASE_URL`.
+2. Paste the contents of `database/schema.sql` into the Neon SQL Editor to create tables.
 
 ### 2. Node.js Backend Setup
 1. Navigate to the `backend/` directory.

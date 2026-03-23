@@ -1,74 +1,70 @@
 -- ══════════════════════════════════════════════════════════════
--- Casinozz v2 — Full Database Schema
+-- Casinozz v2 — PostgreSQL 17 Schema (Neon)
 -- ══════════════════════════════════════════════════════════════
--- NOTE FOR PLANETSCALE DEPLOYMENT:
---   PlanetScale creates the DB for you.
---   Remove or comment out "CREATE DATABASE" and "USE" lines below
---   before pasting into the PlanetScale console.
+-- Paste this directly into the Neon SQL Editor.
 -- ══════════════════════════════════════════════════════════════
-
-CREATE DATABASE IF NOT EXISTS casinozz_v2;
-USE casinozz_v2;
 
 -- ── Auth ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
+    id            SERIAL PRIMARY KEY,
     username      VARCHAR(50)  UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ── Session Tracking ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sessions (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
+    id          SERIAL PRIMARY KEY,
     game        VARCHAR(30) NOT NULL,
     mode        VARCHAR(10) NOT NULL,
-    session_key VARCHAR(36) NOT NULL,
-    started_at  DATETIME    NOT NULL,
-    ended_at    DATETIME    NULL
+    session_key VARCHAR(255) NOT NULL,
+    started_at  TIMESTAMPTZ DEFAULT NOW(),
+    ended_at    TIMESTAMPTZ NULL
 );
+CREATE INDEX IF NOT EXISTS idx_sessions_key ON sessions(session_key);
 
 -- ── Game Events ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS events (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    session_id INT         NOT NULL,
+    id         SERIAL PRIMARY KEY,
+    session_id INTEGER     NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     event_type VARCHAR(30) NOT NULL,
-    payload    JSON        NOT NULL,
-    created_at DATETIME    NOT NULL,
-    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+    payload    JSONB       NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
 
 -- ── Aggregate Stats ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS game_stats (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
+    id           SERIAL PRIMARY KEY,
     game         VARCHAR(30) NOT NULL,
     mode         VARCHAR(10) NOT NULL,
     result       VARCHAR(10) NOT NULL,
-    duration_sec INT         NOT NULL,
-    extra        JSON        NULL,
-    created_at   DATETIME    NOT NULL
+    duration_sec INTEGER     NOT NULL,
+    extra        JSONB       NULL,
+    created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ── Simulation Results ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS simulation_results (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    game          VARCHAR(30)    NOT NULL,
-    mode          VARCHAR(10)    NOT NULL,
-    strategy      VARCHAR(40)    NOT NULL,
-    simulations_n INT            NOT NULL,
-    win_rate      DECIMAL(5,4)   NOT NULL,
-    avg_score     DECIMAL(10,4)  NOT NULL,
-    details       JSON           NOT NULL,
-    ran_at        DATETIME       NOT NULL
+    id            SERIAL PRIMARY KEY,
+    game          VARCHAR(30)      NOT NULL,
+    mode          VARCHAR(10)      NOT NULL,
+    strategy      VARCHAR(40)      NOT NULL,
+    simulations_n INTEGER          NOT NULL,
+    win_rate      DOUBLE PRECISION NOT NULL,
+    avg_score     DOUBLE PRECISION NOT NULL,
+    details       JSONB            NOT NULL DEFAULT '{}',
+    ran_at        TIMESTAMPTZ      DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_sim_game ON simulation_results(game, mode);
 
 -- ── Player Profiles / Clusters ────────────────────────────────
 CREATE TABLE IF NOT EXISTS player_clusters (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    session_key   VARCHAR(36) NOT NULL,
-    cluster_id    INT         NOT NULL,
-    profile_label VARCHAR(40) NOT NULL,
-    feature_vec   JSON        NOT NULL,
-    assigned_at   DATETIME    NOT NULL
+    id            SERIAL PRIMARY KEY,
+    session_key   VARCHAR(255) NOT NULL,
+    cluster_id    INTEGER      NOT NULL,
+    profile_label VARCHAR(40)  NOT NULL,
+    feature_vec   JSONB        NOT NULL DEFAULT '[]',
+    assigned_at   TIMESTAMPTZ  DEFAULT NOW()
 );
-
+CREATE INDEX IF NOT EXISTS idx_clusters_key ON player_clusters(session_key);

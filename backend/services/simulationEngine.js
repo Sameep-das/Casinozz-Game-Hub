@@ -193,7 +193,7 @@ async function runAndSaveSimulation(game, strategy, mode, n) {
     await db.query(
         `INSERT INTO simulation_results 
          (game, mode, strategy, simulations_n, win_rate, avg_score, details, ran_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
         [game, mode, strategy, n, results.win_rate, results.avg_score, JSON.stringify(results.details)]
     );
 

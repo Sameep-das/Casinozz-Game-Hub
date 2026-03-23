@@ -31,13 +31,13 @@ async function buildFeatures(game, username, sessionLastMoves) {
     const user = username || 'anonymous';
 
     // 1. Player's cumulative win_rate + streak for this game
-    const [statsRows] = await db.query(`
+    const { rows: statsRows } = await db.query(`
         SELECT
             COUNT(*) as total,
-            SUM(CASE WHEN JSON_EXTRACT(payload,'$.outcome')='"win"' THEN 1 ELSE 0 END) as wins
+            SUM(CASE WHEN payload->>'outcome' = 'win' THEN 1 ELSE 0 END) as wins
         FROM events e
         JOIN sessions s ON e.session_id = s.id
-        WHERE e.event_type = 'result' AND s.game = ? AND s.session_key = ?
+        WHERE e.event_type = 'result' AND s.game = $1 AND s.session_key = $2
     `, [game, user]);
 
     const total  = parseInt(statsRows[0].total)  || 0;
@@ -45,17 +45,17 @@ async function buildFeatures(game, username, sessionLastMoves) {
     const win_rate = total > 0 ? +(wins / total).toFixed(3) : 0.5;
 
     // 2. Current streak (last N outcomes — +ve = win streak, -ve = loss streak)
-    const [recentRows] = await db.query(`
-        SELECT JSON_EXTRACT(payload,'$.outcome') as outcome
+    const { rows: recentRows } = await db.query(`
+        SELECT payload->>'outcome' as outcome
         FROM events e
         JOIN sessions s ON e.session_id = s.id
-        WHERE e.event_type='result' AND s.game=? AND s.session_key=?
+        WHERE e.event_type='result' AND s.game=$1 AND s.session_key=$2
         ORDER BY e.id DESC LIMIT 10
     `, [game, user]);
 
     let streak = 0;
     for (const row of recentRows) {
-        const o = (row.outcome || '').replace(/"/g,'');
+        const o = (row.outcome || '');
         if (streak === 0) { streak = o === 'win' ? 1 : -1; continue; }
         if (streak > 0 && o === 'win')  { streak++; }
         else if (streak < 0 && o === 'loss') { streak--; }
@@ -63,16 +63,16 @@ async function buildFeatures(game, username, sessionLastMoves) {
     }
 
     // 3. Global move history (ALL players, last 300 events) for Markov chain
-    const [globalRows] = await db.query(`
-        SELECT JSON_EXTRACT(payload,'$.playerChoice') as move
+    const { rows: globalRows } = await db.query(`
+        SELECT payload->>'playerChoice' as move
         FROM events
         WHERE event_type='result' AND session_id IN (
-            SELECT id FROM sessions WHERE game = ?
+            SELECT id FROM sessions WHERE game = $1
         )
         ORDER BY id DESC LIMIT 300
     `, [game]);
     const global_moves = globalRows
-        .map(r => (r.move || '').replace(/"/g,'').toUpperCase())
+        .map(r => (r.move || '').toUpperCase())
         .filter(Boolean);
 
     const features = {
@@ -85,8 +85,8 @@ async function buildFeatures(game, username, sessionLastMoves) {
 
     // 4. Game-specific enrichment
     if (game === 'guess') {
-        const [slotRows] = await db.query(`
-            SELECT JSON_EXTRACT(payload,'$.playerGuess') as slot, COUNT(*) as cnt
+        const { rows: slotRows } = await db.query(`
+            SELECT payload->>'playerGuess' as slot, COUNT(*) as cnt
             FROM events
             WHERE event_type='result' AND session_id IN (
                 SELECT id FROM sessions WHERE game='guess'
@@ -95,7 +95,7 @@ async function buildFeatures(game, username, sessionLastMoves) {
         `);
         const slot_counts = {};
         slotRows.forEach(r => {
-            const k = parseInt((r.slot||'').toString().replace(/"/g,''));
+            const k = parseInt((r.slot||'').toString());
             if (!isNaN(k)) slot_counts[k] = parseInt(r.cnt);
         });
         features.slot_counts = slot_counts;
@@ -103,8 +103,8 @@ async function buildFeatures(game, username, sessionLastMoves) {
     }
 
     if (game === 'mine') {
-        const [cellRows] = await db.query(`
-            SELECT JSON_EXTRACT(payload,'$.selectedCell') as cell, COUNT(*) as cnt
+        const { rows: cellRows } = await db.query(`
+            SELECT payload->>'selectedCell' as cell, COUNT(*) as cnt
             FROM events
             WHERE event_type='result' AND session_id IN (
                 SELECT id FROM sessions WHERE game='mine'
@@ -113,7 +113,7 @@ async function buildFeatures(game, username, sessionLastMoves) {
         `);
         const cell_freq = {};
         cellRows.forEach(r => {
-            const k = parseInt((r.cell||'').toString().replace(/"/g,''));
+            const k = parseInt((r.cell||'').toString());
             if (!isNaN(k)) cell_freq[k] = parseInt(r.cnt);
         });
         features.cell_freq  = cell_freq;
