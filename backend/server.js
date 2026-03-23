@@ -14,7 +14,7 @@ app.use(helmet());
 // ── 2. CORS — lock to frontend domain only ───────────────────────────────────
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:8080', 'http://127.0.0.1:8080'];
+    : ['http://localhost:8080', 'http://127.0.0.1:8080', 'https://casinozz-v2.vercel.app'];
 
 app.use(cors({
     origin: (origin, cb) => {
