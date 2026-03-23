@@ -3,7 +3,9 @@
  * Shared across all games to manage sessions and log events.
  */
 
-const API_BASE = window.CASINOZZ_API || 'http://localhost:3000/api';
+const API_BASE = window.CASINOZZ_API || (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' 
+    ? 'https://casinozz-backend.onrender.com/api' 
+    : 'http://localhost:3000/api');
 
 class CasinozzTracker {
     constructor(gameName) {
