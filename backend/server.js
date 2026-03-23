@@ -17,12 +17,7 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
     : ['http://localhost:8080', 'http://127.0.0.1:8080', 'https://casinozz-v2.vercel.app'];
 
 app.use(cors({
-    origin: (origin, cb) => {
-        // Allow requests with no origin (curl, server-to-server) in dev only
-        if (!origin && process.env.NODE_ENV !== 'production') return cb(null, true);
-        if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-        cb(null, false);
-    },
+    origin: true,
     credentials: true,
 }));
 app.options('*', cors());
