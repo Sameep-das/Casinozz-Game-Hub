@@ -26,7 +26,7 @@ router.get('/hint/:game', async (req, res) => {
             // Validate session_id is a number
             const sid = parseInt(session_id);
             if (isNaN(sid)) return res.status(400).json({ error: 'session_id must be a number' });
-            const [rows] = await db.query('SELECT payload FROM events WHERE session_id = ? ORDER BY id DESC LIMIT 5', [sid]);
+            const { rows } = await db.query('SELECT payload FROM events WHERE session_id = $1 ORDER BY id DESC LIMIT 5', [sid]);
             recentEvents = rows.map(r => r.payload);
         }
         

@@ -28,12 +28,12 @@ router.post('/start', async (req, res) => {
             return res.status(400).json({ error: 'session_key too long' });
         }
         
-        const [result] = await db.query(
-            'INSERT INTO sessions (game, mode, session_key, started_at) VALUES (?, ?, ?, NOW())',
+        const { rows } = await db.query(
+            'INSERT INTO sessions (game, mode, session_key, started_at) VALUES ($1, $2, $3, NOW()) RETURNING id',
             [game, mode.toLowerCase(), session_key]
         );
         
-        res.json({ session_id: result.insertId, session_key, game, mode });
+        res.json({ session_id: rows[0].id, session_key, game, mode });
     } catch (err) {
         console.error('Error starting session:', err);
         res.status(500).json({ error: 'Failed to start session' });
@@ -65,7 +65,7 @@ router.post('/event', async (req, res) => {
         }
         
         await db.query(
-            'INSERT INTO events (session_id, event_type, payload, created_at) VALUES (?, ?, ?, NOW())',
+            'INSERT INTO events (session_id, event_type, payload, created_at) VALUES ($1, $2, $3, NOW())',
             [session_id, event_type, payloadStr]
         );
         

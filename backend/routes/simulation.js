@@ -35,10 +35,10 @@ router.get('/simulate/results/:game', async (req, res) => {
         const mode = req.query.mode || 'hard';
 
         // Get the latest run ID or grouped by strategy
-        const [rows] = await db.query(
+        const { rows } = await db.query(
             `SELECT strategy, win_rate, avg_score, details, ran_at 
              FROM simulation_results 
-             WHERE game = ? AND mode = ? 
+             WHERE game = $1 AND mode = $2 
              ORDER BY ran_at DESC LIMIT 50`,
             [game, mode]
         );
