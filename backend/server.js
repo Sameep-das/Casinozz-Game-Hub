@@ -9,7 +9,10 @@ const PORT = process.env.PORT || 3000;
 console.log('DEBUG: Backend starting on PORT:', PORT);
 
 // ── 1. HELMET — secure HTTP headers ─────────────────────────────────────────
-app.use(helmet());
+// app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false
+}));
 
 // ── 2. CORS — lock to frontend domain only ───────────────────────────────────
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
