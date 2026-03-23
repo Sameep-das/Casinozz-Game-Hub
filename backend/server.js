@@ -21,10 +21,11 @@ app.use(cors({
         // Allow requests with no origin (curl, server-to-server) in dev only
         if (!origin && process.env.NODE_ENV !== 'production') return cb(null, true);
         if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-        cb(new Error('CORS: origin not allowed'));
+        cb(null, false);
     },
     credentials: true,
 }));
+app.options('*', cors());
 
 // ── 3. PAYLOAD SIZE LIMIT — prevent DB bloat / DoS ──────────────────────────
 app.use(express.json({ limit: '50kb' }));  // reject bodies > 50KB
