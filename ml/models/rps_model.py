@@ -2,8 +2,11 @@
 # No DB connection needed — pure compute
 # We use the features passed from Node (global_moves + last_moves)
 
-COUNTERS = { 'rock': 'paper', 'paper': 'scissors', 'scissors': 'rock', 
-            'ROCK': 'PAPER', 'PAPER': 'SCISSORS', 'SCISSORS': 'ROCK' }
+COUNTERS = { 'rock': 'paper', 'paper': 'scissor', 'scissor': 'rock',
+            'ROCK': 'PAPER', 'PAPER': 'SCISSOR', 'SCISSOR': 'ROCK' }
+
+def _normalize(move):
+    return 'SCISSOR' if str(move).upper() == 'SCISSORS' else str(move).upper()
 
 def predict_rps(features):
     """
@@ -13,12 +16,12 @@ def predict_rps(features):
     if not isinstance(features, list):
         return { 'recommended_move': 'PAPER', 'confidence': 0.33, 'model': 'fallback' }
         
-    last_moves = [m.upper() for m in features]
+    last_moves = [_normalize(m) for m in features]
     
     if len(last_moves) < 2:
         return { 'recommended_move': 'PAPER', 'confidence': 0.33, 'model': 'frequency' }
 
-    counts = { 'ROCK': 0, 'PAPER': 0, 'SCISSORS': 0 }
+    counts = { 'ROCK': 0, 'PAPER': 0, 'SCISSOR': 0 }
     
     # Simple bigram frequency from the provided features
     # (Node already sends up to 300 global moves + session moves)
@@ -30,7 +33,7 @@ def predict_rps(features):
     total = sum(counts.values())
     if total == 0:
         import random
-        rnd = random.choice(['ROCK', 'PAPER', 'SCISSORS'])
+        rnd = random.choice(['ROCK', 'PAPER', 'SCISSOR'])
         return { 'recommended_move': COUNTERS[rnd], 'confidence': 0.33, 'model': 'random' }
 
     predicted_next = max(counts, key=counts.get)

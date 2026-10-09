@@ -21,7 +21,7 @@ router.get('/user', requireAuth, async (req, res) => {
                 SUM(CASE WHEN payload->>'outcome' = 'win' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) as win_rate
             FROM events e
             JOIN sessions s ON e.session_id = s.id
-            WHERE e.event_type = 'result' AND s.session_key = $1
+            WHERE e.event_type IN ('round_result', 'result') AND s.session_key = $1
         `, [username]);
 
         const { rows: gameRows } = await db.query(`
@@ -31,7 +31,7 @@ router.get('/user', requireAuth, async (req, res) => {
                 SUM(CASE WHEN payload->>'outcome' = 'win' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) as win_rate
             FROM events e
             JOIN sessions s ON e.session_id = s.id
-            WHERE e.event_type = 'result' AND s.session_key = $1
+            WHERE e.event_type IN ('round_result', 'result') AND s.session_key = $1
             GROUP BY s.game
         `, [username]);
 
@@ -61,7 +61,7 @@ router.get('/ai_learning', requireAuth, async (req, res) => {
                 e.id
             FROM events e
             JOIN sessions s ON e.session_id = s.id
-            WHERE e.event_type = 'result' AND s.session_key = $1
+            WHERE e.event_type IN ('round_result', 'result') AND s.session_key = $1
         `;
         const params = [username];
         if (game) { query += ' AND s.game = $2'; params.push(game); }
@@ -131,7 +131,7 @@ router.get('/:game', async (req, res) => {
             SELECT 
                 SUM(CASE WHEN payload->>'outcome' = 'win' THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) as win_rate
             FROM events 
-            WHERE event_type = 'result' AND session_id IN (
+            WHERE event_type IN ('round_result', 'result') AND session_id IN (
                 SELECT id FROM sessions WHERE game = $1
             )
         `, [game]);

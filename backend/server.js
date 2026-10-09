@@ -19,13 +19,40 @@ app.use(helmet({
 // ── 2. CORS — lock to frontend domain only ───────────────────────────────────
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',')
-    : ['http://localhost:8080', 'http://127.0.0.1:8080', 'https://casinozz-v2.vercel.app'];
+    // : ['http://localhost:8080', 'http://127.0.0.1:8080', 'https://casinozz-v2.vercel.app'];
+    : ['http://localhost:8080', 'http://127.0.0.1:8080', 'http://127.0.0.1:5500', 'http://localhost:5500', 'https://casinozz-v2.vercel.app'];
 
 app.use(cors({
-    origin: true,
+    // BUGFIX: origin:true reflected every external site, so any website could
+    // call authenticated API routes. Only configured frontend origins are allowed.
+    origin(origin, callback) {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
 }));
-app.options('*', cors());
+const corsOptions = {
+    origin(origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests) 
+        // or if origin is in our allowed list
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            return callback(null, true);
+        }
+        // Gracefully fail CORS without throwing a 500 internal server error
+        return callback(null, false);
+    },
+    credentials: true,
+};
+// app.options('*', cors({
+//     origin(origin, callback) {
+//         if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+//         return callback(new Error('Not allowed by CORS'));
+//     },
+//     credentials: true,
+// }));
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // ── 3. PAYLOAD SIZE LIMIT — prevent DB bloat / DoS ──────────────────────────
 app.use(express.json({ limit: '50kb' }));  // reject bodies > 50KB
@@ -50,6 +77,7 @@ const authLimiter = rateLimit({
 // ── 6. HEALTH CHECK ──────────────────────────────────────────────────────────
 let mlWarmStarted = false;
 async function warmML() {
+    if (!process.env.ML_SERVICE_URL) return;
     try {
         const response = await fetch(`${process.env.ML_SERVICE_URL}/health`);
 
@@ -70,6 +98,13 @@ app.get('/health', (req, res) => {
                 mlWarmStarted = false;
             });
     }
+    res.json({
+        status: 'healthy',
+        service: 'node-backend',
+        uptime: process.uptime()
+    });
+});
+app.get('/api/health', (req, res) => {
     res.json({
         status: 'healthy',
         service: 'node-backend',

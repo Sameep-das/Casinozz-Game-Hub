@@ -46,7 +46,7 @@ def _fetch_mine_data():
             SELECT e.payload, s.mode
             FROM events e
             JOIN sessions s ON e.session_id = s.id
-            WHERE e.event_type = 'result' AND s.game = 'mine'
+            WHERE e.event_type IN ('round_result', 'result') AND s.game = 'mine'
             ORDER BY e.id DESC LIMIT 1000
         """)
         rows = cursor.fetchall()
@@ -90,7 +90,7 @@ def _fetch_cluster_data():
                 SUM(CASE WHEN JSON_EXTRACT(e.payload,'$.outcome')='"win"' THEN 1 ELSE 0 END) as wins
             FROM events e
             JOIN sessions s ON e.session_id = s.id
-            WHERE e.event_type = 'result'
+            WHERE e.event_type IN ('round_result', 'result')
             GROUP BY s.session_key, s.game, s.mode
         """)
         rows = cursor.fetchall()

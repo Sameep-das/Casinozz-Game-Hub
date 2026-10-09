@@ -31,8 +31,11 @@ def _go_random(difficulty: str) -> bool:
 # ═══════════════════════════════════════════════════════
 # ROCK PAPER SCISSORS — Markov Chain Bigram + Win-Rate
 # ═══════════════════════════════════════════════════════
-COUNTERS = {'ROCK': 'PAPER', 'PAPER': 'SCISSORS', 'SCISSORS': 'ROCK'}
-RPS_CHOICES = ['ROCK', 'PAPER', 'SCISSORS']
+COUNTERS = {'ROCK': 'PAPER', 'PAPER': 'SCISSOR', 'SCISSOR': 'ROCK'}
+RPS_CHOICES = ['ROCK', 'PAPER', 'SCISSOR']
+
+def _normalize_rps(move: str) -> str:
+    return 'SCISSOR' if move == 'SCISSORS' else move
 
 def ai_move_rps(features: dict) -> dict:
     """
@@ -40,8 +43,8 @@ def ai_move_rps(features: dict) -> dict:
     and the current session's last_moves. If streak is >= 3, exploit it harder.
     """
     difficulty   = features.get('difficulty', 'hard')
-    last_moves   = [m.upper() for m in (features.get('last_moves') or [])]
-    global_moves = [m.upper() for m in (features.get('global_moves') or [])]
+    last_moves   = [_normalize_rps(str(m).upper()) for m in (features.get('last_moves') or [])]
+    global_moves = [_normalize_rps(str(m).upper()) for m in (features.get('global_moves') or [])]
     streak       = features.get('streak', 0)        # +ve = player winning streak
     win_rate     = features.get('win_rate', 0.5)
 
@@ -53,7 +56,7 @@ def ai_move_rps(features: dict) -> dict:
 
     # Build bigram: after seeing last player move, what do they play next?
     last = last_moves[-1]
-    counts = {'ROCK': 0, 'PAPER': 0, 'SCISSORS': 0}
+    counts = {'ROCK': 0, 'PAPER': 0, 'SCISSOR': 0}
     for i in range(len(seq) - 1):
         if seq[i] == last and seq[i + 1] in counts:
             counts[seq[i + 1]] += 1

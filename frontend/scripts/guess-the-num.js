@@ -6,23 +6,17 @@ const onTouch = new Audio("../resources/onTouch.mp3");
 
 const tracker = new CasinozzTracker('guess');
 tracker.startSession('medium');
+const aiQueue = window.CasinozzAI.create({ game: 'guess', tracker });
+aiQueue.setMode('medium');
 
-// ── Adaptive AI State ─────────────────────────────────────
-const ML_BASE = window.ML_SERVICE_URL || 'http://localhost:5001';
 let playerGuessHistory = [];
 let currentGuessMode = 'medium';
 
-async function fetchAiCorrectOpt(numOptions) {
-  try {
-    const res = await fetch(`${ML_BASE}/ai_move`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: 'guess', last_moves: playerGuessHistory, difficulty: currentGuessMode })
-    });
-    const data = await res.json();
-    const idx = (typeof data.ai_choice === 'number') ? data.ai_choice : Math.floor(Math.random() * numOptions);
-    return Math.max(0, Math.min(idx, numOptions - 1));
-  } catch(e) { return Math.floor(Math.random() * numOptions); }
+function fetchAiCorrectOpt(numOptions) {
+  // BUGFIX: the old generator fired an async ML request but did not await it
+  // before play, so correctOpt could be stale or undefined. The queue is sync.
+  const idx = aiQueue.nextMove({ mode: currentGuessMode, numOptions });
+  return Math.max(0, Math.min(idx, numOptions - 1));
 }
 
 //SET MODE AS MEDIUM BY DEFAULT
@@ -51,18 +45,24 @@ document.querySelector(".js-generate").addEventListener("click", () => {
 
 document.getElementById("Easy").addEventListener("click", () => {
   mode = GAME_MODES.EASY;
+  currentGuessMode = 'easy';
+  aiQueue.setMode('easy');
   tracker.startSession('easy');
   handleMode(GAME_MODES.EASY);
 });
 
 document.getElementById("Medium").addEventListener("click", () => {
   mode = GAME_MODES.MEDIUM;
+  currentGuessMode = 'medium';
+  aiQueue.setMode('medium');
   tracker.startSession('medium');
   handleMode(GAME_MODES.MEDIUM);
 });
 
 document.getElementById("Hard").addEventListener("click", () => {
   mode = GAME_MODES.HARD;
+  currentGuessMode = 'hard';
+  aiQueue.setMode('hard');
   tracker.startSession('hard');
   handleMode(GAME_MODES.HARD);
 });
@@ -172,9 +172,9 @@ function fillOptions() {
   }
 }
 
-async function correctOptGenerator() {
+function correctOptGenerator() {
   const numOptions = (mode === GAME_MODES.HARD) ? 1 : (mode === GAME_MODES.MEDIUM) ? 3 : 2;
-  const aiIdx = await fetchAiCorrectOpt(numOptions);
+  const aiIdx = fetchAiCorrectOpt(numOptions);
   correctOpt = choiceProvidedArr[Math.min(aiIdx, choiceProvidedArr.length - 1)];
 }
 
@@ -184,8 +184,10 @@ function playGTN() {
   let guessVal = parseInt(userInputVal.value);
   playerGuessHistory.push(guessVal);
   if (playerGuessHistory.length > 20) playerGuessHistory.shift();
+  aiQueue.recordPlayerMove(guessVal);
+  tracker.logEvent('move', { actor: 'player', player_move: guessVal });
   let isWin = correctOpt === guessVal;
-  tracker.logEvent('result', { guess: guessVal, actual: correctOpt, playerGuess: guessVal, outcome: isWin ? 'win' : 'loss', mode: mode });
+  tracker.logEvent('round_result', { player_move: guessVal, ai_move: correctOpt, outcome: isWin ? 'win' : 'loss' });
   if (isWin) {
     score.wins += 1;
     gameResult.classList.add("green-result");
@@ -247,6 +249,9 @@ function handleReset() {
   }
   changeText("score", score.wins);
   mode = GAME_MODES.MEDIUM;
+  currentGuessMode = 'medium';
+  aiQueue.setMode('medium');
+  tracker.startSession('medium');
   handleMode(mode);
   gameResult.innerText = "";
   fillOptions();

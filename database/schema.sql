@@ -27,11 +27,14 @@ CREATE INDEX IF NOT EXISTS idx_sessions_key ON sessions(session_key);
 CREATE TABLE IF NOT EXISTS events (
     id         SERIAL PRIMARY KEY,
     session_id INTEGER     NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    -- Event types are intentionally specific: move, round_result, withdraw,
+    -- mine_layout, and init. Legacy result rows are still readable by analytics.
     event_type VARCHAR(30) NOT NULL,
     payload    JSONB       NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id);
+CREATE INDEX IF NOT EXISTS idx_events_type_session ON events(event_type, session_id);
 
 -- ── Aggregate Stats ───────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS game_stats (

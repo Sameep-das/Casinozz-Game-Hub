@@ -20,23 +20,9 @@ const onTouch = new Audio("../resources/onTouch.mp3");
 
 const tracker = new CasinozzTracker('mine');
 tracker.startSession('easy');
+const aiQueue = window.CasinozzAI.create({ game: 'mine', tracker });
 
-// ── Adaptive AI State ─────────────────────────────────────
-const ML_BASE = window.ML_SERVICE_URL || 'http://localhost:5001';
 let playerCellHistory = [];
-
-async function fetchAiMineCells(mode) {
-  try {
-    const res = await fetch(`${ML_BASE}/ai_move`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: 'mine', last_moves: playerCellHistory, difficulty: gameMode.toLowerCase(), mode: mode.toLowerCase() })
-    });
-    const data = await res.json();
-    if (Array.isArray(data.mine_cells) && data.mine_cells.length > 0) return data.mine_cells;
-    return null; // fall through to random
-  } catch(e) { return null; }
-}
 
 const totalCells = 9; //TOTAL CELLS IN THE GRID
 let gameMode = GAME_MODES.EASY; //DEFAULT GAME MODE
@@ -73,6 +59,7 @@ function createUniqueNumberPool(min, max, quantity) {
 modeArr.forEach((val, index) => {
   modeArr[index].addEventListener("click", () => {
     gameMode = modeArr[index].id.toUpperCase();
+    aiQueue.setMode(gameMode.toLowerCase());
     tracker.startSession(gameMode.toLowerCase());
     removeClass("current-mode-name", "green-result");
     changeText("current-mode-name", gameMode);
@@ -85,16 +72,22 @@ modeArr.forEach((val, index) => {
 document.body.addEventListener("keydown", (event) => {
   if (event.key === "e" || event.key === "E") {
     gameMode = GAME_MODES.EASY;
+    aiQueue.setMode('easy');
+    tracker.startSession('easy');
     removeClass("current-mode-name", "green-result");
     changeText("current-mode-name", GAME_MODES.EASY);
     resetGame();
   } else if (event.key === "m" || event.key === "M") {
     gameMode = GAME_MODES.MEDIUM;
+    aiQueue.setMode('medium');
+    tracker.startSession('medium');
     removeClass("current-mode-name", "green-result");
     changeText("current-mode-name", GAME_MODES.MEDIUM);
     resetGame();
   } else if (event.key === "h" || event.key === "H") {
     gameMode = GAME_MODES.HARD;
+    aiQueue.setMode('hard');
+    tracker.startSession('hard');
     removeClass("current-mode-name", "green-result");
     changeText("current-mode-name", GAME_MODES.HARD);
     resetGame();
@@ -119,12 +112,19 @@ cellArr.forEach((val, index) => {
   cellArr[index].addEventListener("click", () => {
     let selectID = parseInt(cellArr[index].id);
     onTouch.play();
-    playerCellHistory.push(selectID);
-    if (playerCellHistory.length > 40) playerCellHistory.shift();
     let result = getResult(selectID);
     if (!userSelectCells.includes(selectID)) {
-      tracker.logEvent('result', { selectedCell: selectID, cells_revealed: userSelectCells.length, mode: gameMode, outcome: result ? 'win' : 'loss' });
+      playerCellHistory.push(selectID);
+      if (playerCellHistory.length > 40) playerCellHistory.shift();
+      aiQueue.recordPlayerMove(selectID);
+      tracker.logEvent('move', { actor: 'player', player_move: selectID, selected_cells: [...userSelectCells] });
       userSelectCells.push(selectID);
+      tracker.logEvent('round_result', {
+        player_move: selectID,
+        mine_cells: [...mineCellArr],
+        cells_revealed: userSelectCells.length,
+        outcome: result ? 'win' : 'loss'
+      });
       if (result) {
         renderAtVictory(selectID);
       } else {
@@ -137,24 +137,13 @@ cellArr.forEach((val, index) => {
   });
 });
 
-//GENERATES THE MINE CELLS BASED ON THE SELECTED GAME MODE (AI-powered)
-async function generateMineCell(gameMode) {
-  const aiMines = await fetchAiMineCells(gameMode);
-  if (aiMines) {
-    mineCellArr = aiMines;
-    return;
-  }
-  // Fallback: random mine placement
-  if (gameMode === GAME_MODES.EASY) {
-    const mineCells = createUniqueNumberPool(0, 8, 1);
-    mineCellArr = [...mineCells];
-  } else if (gameMode === GAME_MODES.MEDIUM) {
-    const mineCells = createUniqueNumberPool(0, 8, 2);
-    mineCellArr = [...mineCells];
-  } else if (gameMode === GAME_MODES.HARD) {
-    const mineCells = createUniqueNumberPool(0, 8, 3);
-    mineCellArr = [...mineCells];
-  }
+//GENERATES THE MINE CELLS BASED ON THE SELECTED GAME MODE
+function generateMineCell(gameMode) {
+  // BUGFIX: mine generation previously called ML before a round started, which
+  // made easy mode depend on the Python service and gave ML no withdrawal data.
+  // Now easy is local and higher modes consume plans requested after withdrawal.
+  mineCellArr = aiQueue.nextMove({ mode: gameMode.toLowerCase(), totalCells });
+  tracker.logEvent('mine_layout', { mine_cells: [...mineCellArr] });
 }
 
 //EVALUATES RESULT //CHECKS IF THE USER SELECTED CELL IS A MINE OR NOT
@@ -215,7 +204,6 @@ function renderAtVictory(userChoice) {
 
 //RENDER AT DEFEAT
 function renderAtDefeat() {
-  tracker.logEvent('result', { outcome: 'loss', cells_revealed: userSelectCells.length, multiplier: score.wins });
   mineCellArr.forEach((val) => {
     addClassByID(`${val}`, "mine-cell");
   });
@@ -254,7 +242,24 @@ function resetGame() {
 
 //HANDLE THE WITHDRAW FUNCTIONALITY
 function handleWithdraw() {
-  tracker.logEvent('result', { outcome: 'win', cells_revealed: userSelectCells.length, multiplier: score.wins });
+  if (userSelectCells.length === 0) {
+    removeClass("current-mode-name", "green-result");
+    changeText("current-mode-name", "Select A Box First");
+    return;
+  }
+  tracker.logEvent('withdraw', {
+    outcome: 'win',
+    selected_cells: [...userSelectCells],
+    cells_revealed: userSelectCells.length,
+    multiplier: score.wins
+  });
+  aiQueue.requestMinePlan({
+    mode: gameMode.toLowerCase(),
+    selected_cells: [...userSelectCells],
+    current_mine_cells: [...mineCellArr],
+    multiplier: score.wins,
+    totalCells
+  });
   setTimeout(() => {
     resetGame();
   }, autoPlayDelayMS);

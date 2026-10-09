@@ -20,6 +20,7 @@ const onTouch = new Audio("../resources/onTouch.mp3");
 
 const tracker = new CasinozzTracker('rps');
 tracker.startSession('easy');
+const aiQueue = window.CasinozzAI.create({ game: 'rps', tracker });
 
 //-------------EVENT LISTENER LIST--------------//
 
@@ -88,43 +89,19 @@ document.body.addEventListener("keydown", (event) => {
 async function handleMove(playerMove){
   if(!playerMove) return;
   player.push(playerMove);
-  let compChoice = await randomRPS();
+  aiQueue.recordPlayerMove(playerMove);
+  tracker.logEvent('move', { actor: 'player', player_move: playerMove });
+  let compChoice = randomRPS();
   let result = computeResult(playerMove, compChoice);
   callReqAnimationFrame(compChoice, playerMove, result);
   onTouch.play();
 }
 
-// ── Adaptive AI State ─────────────────────────────────────
-const ML_BASE = window.ML_SERVICE_URL || 'http://localhost:5001';
-let currentMode = 'easy'; // updated when mode is selected
-
-async function fetchAiMove() {
-  try {
-    const res = await fetch(`${ML_BASE}/ai_move`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: 'rps', last_moves: player.playerMoveHistory, difficulty: currentMode })
-    });
-    const data = await res.json();
-    return data.ai_choice;
-  } catch(e) {
-    console.error("Error fetching AI move:", e);
-   }
-}
-
-
-async function randomRPS() {
-  const c = [RPS_CHOICES.ROCK, RPS_CHOICES.PAPER, RPS_CHOICES.SCISSOR];
-  const ind = getRandomInt(0, 2);
-  
-  if(player.playerMoveHistory.length >= 10){
-    try {
-      return await fetchAiMove();
-    } catch(e) {
-      return c[ind];
-    }
-  }
-  return c[ind];
+function randomRPS() {
+  // BUGFIX: RPS used to call the ML service directly and sometimes returned
+  // "SCISSORS", which broke result calculation because this game uses "SCISSOR".
+  // Easy mode now stays local; harder modes consume normalized queued moves.
+  return aiQueue.nextMove({ mode: 'easy' });
 }
 
 const COUNTERS = { [RPS_CHOICES.ROCK]: RPS_CHOICES.PAPER, [RPS_CHOICES.PAPER]: RPS_CHOICES.SCISSOR, [RPS_CHOICES.SCISSOR]: RPS_CHOICES.ROCK };
@@ -159,7 +136,12 @@ const callReqAnimationFrame = (compChoice, userChoice, result) => {
   let outcomeStr = 'tie';
   if (result === RPS_RESULTS.VICTORY) outcomeStr = 'win';
   else if (result === RPS_RESULTS.DEFEAT) outcomeStr = 'loss';
-  tracker.logEvent('result', { playerChoice: userChoice, cpuChoice: compChoice, outcome: outcomeStr });
+  tracker.logEvent('round_result', {
+    actor: 'system',
+    player_move: userChoice,
+    ai_move: compChoice,
+    outcome: outcomeStr
+  });
 
   requestAnimationFrame(() => {
     renderCompChoice(compChoice);
@@ -301,6 +283,9 @@ function handleAutoPlay() {
     autoPlayID = setInterval(function () {
       let compChoice = randomRPS();
       let compAsUserChoice = randomRPS();
+      player.push(compAsUserChoice);
+      aiQueue.recordPlayerMove(compAsUserChoice);
+      tracker.logEvent('move', { actor: 'autoplay', player_move: compAsUserChoice });
       let result = computeResult(compAsUserChoice, compChoice);
       callReqAnimationFrame(compChoice, compAsUserChoice, result);
       onTouch.play();

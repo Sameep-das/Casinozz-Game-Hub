@@ -23,24 +23,19 @@ const onTouch = new Audio("../resources/onTouch.mp3");
 
 const tracker = new CasinozzTracker('coin');
 tracker.startSession('easy');
+const aiQueue = window.CasinozzAI.create({ game: 'coin', tracker });
 
-// ── Adaptive AI State ─────────────────────────────────────
-const ML_BASE = window.ML_SERVICE_URL || 'http://localhost:5001';
 let playerCoinHistory = [];
 let currentCoinMode = 'easy';
 
-async function fetchAiCoin(userChoice) {
+function fetchAiCoin(userChoice) {
   playerCoinHistory.push(userChoice);
   if (playerCoinHistory.length > 20) playerCoinHistory.shift();
-  try {
-    const res = await fetch(`${ML_BASE}/ai_move`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ game: 'coin', last_moves: playerCoinHistory, difficulty: currentCoinMode })
-    });
-    const data = await res.json();
-    return data.ai_choice || (getRandomInt(0,1) === 0 ? TOSS.HEADS : TOSS.TAILS);
-  } catch(e) { return getRandomInt(0,1) === 0 ? TOSS.HEADS : TOSS.TAILS; }
+  aiQueue.recordPlayerMove(userChoice);
+  tracker.logEvent('move', { actor: 'player', player_move: userChoice });
+  // BUGFIX: coin used to block every click on a direct Python ML call. Easy mode
+  // is intentionally plain random play; non-easy modes use the background queue.
+  return aiQueue.nextMove({ mode: currentCoinMode });
 }
 
 //LOCAL STORAGE SAVES AN OBJECT CALLED SCORE WITH
@@ -58,18 +53,18 @@ if (!score) {
 
 let tailInput = getElementByClass("js-tail-input");
 tailInput.addEventListener("click", async () => {
-  const compMove = await fetchAiCoin(TOSS.TAILS);
+  const compMove = fetchAiCoin(TOSS.TAILS);
   let result = getResult(TOSS.TAILS, compMove);
-  tracker.logEvent('result', { playerChoice: TOSS.TAILS, cpuChoice: compMove, outcome: result ? 'win' : 'loss' });
+  tracker.logEvent('round_result', { player_move: TOSS.TAILS, ai_move: compMove, outcome: result ? 'win' : 'loss' });
   updateDOMByBatch(compMove, result);
   onTouch.play();
 });
 
 let headInput = getElementByClass("js-head-input");
 headInput.addEventListener("click", async () => {
-  const compMove = await fetchAiCoin(TOSS.HEADS);
+  const compMove = fetchAiCoin(TOSS.HEADS);
   let result = getResult(TOSS.HEADS, compMove);
-  tracker.logEvent('result', { playerChoice: TOSS.HEADS, cpuChoice: compMove, outcome: result ? 'win' : 'loss' });
+  tracker.logEvent('round_result', { player_move: TOSS.HEADS, ai_move: compMove, outcome: result ? 'win' : 'loss' });
   updateDOMByBatch(compMove, result);
   onTouch.play();
 });
@@ -208,10 +203,13 @@ function handleAutoPlay() {
     changeText("js-auto-play", "Pause Play");
     intervalID = setInterval(() => {
       let compAsUserMove = defineToss(getRandomInt(0, 1));
+      aiQueue.recordPlayerMove(compAsUserMove);
+      tracker.logEvent('move', { actor: 'autoplay', player_move: compAsUserMove });
       renderComputerAsUser(compAsUserMove);
-      let compMove = defineToss(getRandomInt(0, 1));
+      let compMove = aiQueue.nextMove({ mode: currentCoinMode });
       renderComputerMove(compMove);
       let result = getResult(compAsUserMove, compMove);
+      tracker.logEvent('round_result', { actor: 'autoplay', player_move: compAsUserMove, ai_move: compMove, outcome: result ? 'win' : 'loss' });
       renderResultEffects(result);
       renderResultPopup(result);
     }, autoPlayDelayMS);

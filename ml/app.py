@@ -22,8 +22,15 @@ from adaptive_ai import ai_move_rps, ai_move_coin, ai_move_guess, ai_move_mine
 
 app = Flask(__name__)
 
-# In production, lock CORS to only the Node backend's origin
-ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '*').split(',')
+# BUGFIX: default '*' let any external site call the ML layer. Keep local dev and
+# deployed frontend/backend origins explicit unless ALLOWED_ORIGINS overrides them.
+ALLOWED_ORIGINS = [
+    origin.strip() for origin in os.getenv(
+        'ALLOWED_ORIGINS',
+        'http://localhost:8080,http://127.0.0.1:8080,https://casinozz-v2.vercel.app,https://casinozz-backend.onrender.com'
+    ).split(',')
+    if origin.strip()
+]
 CORS(app, origins=ALLOWED_ORIGINS)
 
 # ── Internal API Key — block unauthorized callers ────────────────────────────
@@ -44,6 +51,10 @@ def _check_api_key():
 # ── Health Check (no auth needed) ──────────────────────────────────────────
 @app.route('/health', methods=['GET'])
 def health():
+    return jsonify({'status': 'healthy', 'service': 'python-ml'})
+
+@app.route('/api/health', methods=['GET'])
+def api_health():
     return jsonify({'status': 'healthy', 'service': 'python-ml'})
 
 
@@ -129,6 +140,57 @@ def ai_move():
     }
     result = handlers[game](features)
     return jsonify(result)
+
+
+@app.route('/ai_batch', methods=['POST'])
+def ai_batch():
+    """
+    Expects the canonical Node payload:
+    {
+      "game": "rps|coin|guess|mine",
+      "features": {"last_moves": [...], ...},
+      "queue_target": 10,
+      "request_type": "move_batch|mine_withdrawal"
+    }
+    Returns counter_moves for the next turns, or mine_cells for Mine the Gold.
+    """
+    auth_err = _check_api_key()
+    if auth_err:
+        return auth_err
+
+    data = request.json or {}
+    game = data.get('game')
+    features = data.get('features', {})
+    queue_target = min(int(data.get('queue_target', 10) or 10), 10)
+
+    if game not in {'rps', 'coin', 'guess', 'mine'}:
+        return jsonify({'error': f'Unknown game: {game}'}), 400
+    if not isinstance(features, dict):
+        return jsonify({'error': '"features" must be an object'}), 400
+
+    handlers = {
+        'rps':   ai_move_rps,
+        'coin':  ai_move_coin,
+        'guess': ai_move_guess,
+        'mine':  ai_move_mine,
+    }
+
+    if game == 'mine':
+        result = handlers[game](features)
+        result['request_type'] = data.get('request_type', 'mine_withdrawal')
+        return jsonify(result)
+
+    moves = []
+    for _ in range(queue_target):
+        result = handlers[game](features)
+        moves.append(result.get('ai_choice'))
+
+    return jsonify({
+        'counter_moves': moves,
+        'strategy': 'batched_counter',
+        'batch_size': len(features.get('last_moves') or []),
+        'queue_target': queue_target,
+    })
 
 
 if __name__ == '__main__':

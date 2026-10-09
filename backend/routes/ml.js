@@ -12,6 +12,8 @@
 const express = require('express');
 const router  = express.Router();
 const axios   = require('axios');
+const path    = require('path');
+const { Worker } = require('worker_threads');
 const db      = require('../db');
 
 const ML_URL     = process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001';
@@ -37,7 +39,7 @@ async function buildFeatures(game, username, sessionLastMoves) {
             SUM(CASE WHEN payload->>'outcome' = 'win' THEN 1 ELSE 0 END) as wins
         FROM events e
         JOIN sessions s ON e.session_id = s.id
-        WHERE e.event_type = 'result' AND s.game = $1 AND s.session_key = $2
+        WHERE e.event_type IN ('round_result', 'result') AND s.game = $1 AND s.session_key = $2
     `, [game, user]);
 
     const total  = parseInt(statsRows[0].total)  || 0;
@@ -49,7 +51,7 @@ async function buildFeatures(game, username, sessionLastMoves) {
         SELECT payload->>'outcome' as outcome
         FROM events e
         JOIN sessions s ON e.session_id = s.id
-        WHERE e.event_type='result' AND s.game=$1 AND s.session_key=$2
+        WHERE e.event_type IN ('round_result', 'result') AND s.game=$1 AND s.session_key=$2
         ORDER BY e.id DESC LIMIT 10
     `, [game, user]);
 
@@ -64,9 +66,9 @@ async function buildFeatures(game, username, sessionLastMoves) {
 
     // 3. Global move history (ALL players, last 300 events) for Markov chain
     const { rows: globalRows } = await db.query(`
-        SELECT payload->>'playerChoice' as move
+        SELECT COALESCE(payload->>'player_move', payload->>'playerChoice') as move
         FROM events
-        WHERE event_type='result' AND session_id IN (
+        WHERE event_type IN ('move', 'result') AND session_id IN (
             SELECT id FROM sessions WHERE game = $1
         )
         ORDER BY id DESC LIMIT 300
@@ -86,9 +88,9 @@ async function buildFeatures(game, username, sessionLastMoves) {
     // 4. Game-specific enrichment
     if (game === 'guess') {
         const { rows: slotRows } = await db.query(`
-            SELECT payload->>'playerGuess' as slot, COUNT(*) as cnt
+            SELECT COALESCE(payload->>'player_move', payload->>'playerGuess', payload->>'guess') as slot, COUNT(*) as cnt
             FROM events
-            WHERE event_type='result' AND session_id IN (
+            WHERE event_type IN ('move', 'result') AND session_id IN (
                 SELECT id FROM sessions WHERE game='guess'
             )
             GROUP BY slot
@@ -104,9 +106,9 @@ async function buildFeatures(game, username, sessionLastMoves) {
 
     if (game === 'mine') {
         const { rows: cellRows } = await db.query(`
-            SELECT payload->>'selectedCell' as cell, COUNT(*) as cnt
+            SELECT COALESCE(payload->>'player_move', payload->>'selectedCell') as cell, COUNT(*) as cnt
             FROM events
-            WHERE event_type='result' AND session_id IN (
+            WHERE event_type IN ('move', 'result') AND session_id IN (
                 SELECT id FROM sessions WHERE game='mine'
             )
             GROUP BY cell
@@ -123,6 +125,57 @@ async function buildFeatures(game, username, sessionLastMoves) {
     return features;
 }
 
+function fallbackBatch(game, mode, context = {}) {
+    const count = Math.min(parseInt(context.queue_target, 10) || 10, 10);
+    const mineCount = { easy: 1, medium: 2, hard: 3 }[(mode || 'easy').toLowerCase()] || 1;
+    const uniqueCells = () => {
+        const cells = new Set();
+        while (cells.size < mineCount) cells.add(Math.floor(Math.random() * 9));
+        return [...cells];
+    };
+    const fallbacks = {
+        rps: () => ({ counter_moves: Array.from({ length: count }, () => ['ROCK', 'PAPER', 'SCISSOR'][Math.floor(Math.random() * 3)]), strategy: 'fallback_batch' }),
+        coin: () => ({ counter_moves: Array.from({ length: count }, () => (Math.random() > 0.5 ? 'HEADS' : 'TAILS')), strategy: 'fallback_batch' }),
+        guess: () => ({ counter_moves: Array.from({ length: count }, () => Math.floor(Math.random() * (context.numOptions || context.num_options || 4))), strategy: 'fallback_batch' }),
+        mine: () => ({ mine_cells: uniqueCells(), strategy: 'fallback_batch', mine_count: mineCount }),
+    };
+    return fallbacks[game] ? fallbacks[game]() : { counter_moves: [], strategy: 'fallback_batch' };
+}
+
+function runMlBatchWorker(payload) {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker(path.join(__dirname, '..', 'workers', 'mlBatchWorker.js'), {
+            workerData: {
+                mlUrl: ML_URL,
+                headers: ML_HEADERS,
+                timeout: ML_TIMEOUT,
+                payload,
+            },
+        });
+
+        const timeoutId = setTimeout(() => {
+            worker.terminate();
+            reject(new Error('ML batch worker timeout'));
+        }, ML_TIMEOUT + 500);
+
+        worker.once('message', (message) => {
+            clearTimeout(timeoutId);
+            if (message.ok) resolve(message.data);
+            else reject(new Error(message.error || 'ML batch worker failed'));
+        });
+        worker.once('error', (err) => {
+            clearTimeout(timeoutId);
+            reject(err);
+        });
+        worker.once('exit', (code) => {
+            if (code !== 0) {
+                clearTimeout(timeoutId);
+                reject(new Error(`ML batch worker exited with code ${code}`));
+            }
+        });
+    });
+}
+
 // ── POST /api/ml/ai_move ─────────────────────────────────────────────────────
 router.post('/ai_move', async (req, res) => {
     const { game, last_moves, difficulty, mode, username } = req.body;
@@ -136,7 +189,7 @@ router.post('/ai_move', async (req, res) => {
     }
 
     const fallbacks = {
-        rps:   () => ({ ai_choice: ['ROCK','PAPER','SCISSORS'][Math.floor(Math.random()*3)], strategy: 'fallback' }),
+        rps:   () => ({ ai_choice: ['ROCK','PAPER','SCISSOR'][Math.floor(Math.random()*3)], strategy: 'fallback' }),
         coin:  () => ({ ai_choice: Math.random()>0.5 ? 'HEADS':'TAILS', strategy: 'fallback' }),
         guess: () => ({ ai_choice: Math.floor(Math.random()*4), strategy: 'fallback' }),
         mine:  () => ({ mine_cells: [Math.floor(Math.random()*9)], strategy: 'fallback', mine_count: 1 }),
@@ -158,6 +211,64 @@ router.post('/ai_move', async (req, res) => {
         console.error('[ml.js] ai_move error:', err.message);
         const fb = fallbacks[game];
         res.json(fb ? fb() : { ai_choice: null, strategy: 'error_fallback' });
+    }
+});
+
+// ── POST /api/ml/ai_batch ────────────────────────────────────────────────────
+router.post('/ai_batch', async (req, res) => {
+    const {
+        game,
+        mode = 'medium',
+        difficulty = mode,
+        session_key,
+        session_id,
+        events = [],
+        context = {},
+        queue_target = 10,
+        request_type = 'move_batch',
+    } = req.body;
+
+    if (!game || !VALID_GAMES.has(game)) {
+        return res.status(400).json({ error: `Invalid game. Must be one of: ${[...VALID_GAMES]}` });
+    }
+    if (!Array.isArray(events)) {
+        return res.status(400).json({ error: '"events" must be an array' });
+    }
+
+    const lastMoves = events
+        .filter((event) => event && event.actor === 'player')
+        .map((event) => event.move)
+        .filter((move) => move !== undefined && move !== null)
+        .slice(-5);
+
+    try {
+        const features = await buildFeatures(game, session_key || 'anonymous', lastMoves);
+        features.difficulty = difficulty;
+        features.mode = mode;
+        features.events = events;
+        features.context = context;
+        features.request_type = request_type;
+        features.queue_target = Math.min(parseInt(queue_target, 10) || 10, 10);
+        if (game === 'guess' && (context.numOptions || context.num_options)) {
+            features.num_options = context.numOptions || context.num_options;
+        }
+
+        const mlPayload = {
+            game,
+            mode,
+            difficulty,
+            session: { id: session_id || null, key: session_key || 'anonymous' },
+            events,
+            features,
+            queue_target: features.queue_target,
+            request_type,
+        };
+
+        const data = await runMlBatchWorker(mlPayload);
+        res.json(data);
+    } catch (err) {
+        console.error('[ml.js] ai_batch error:', err.message);
+        res.json(fallbackBatch(game, mode, { ...context, queue_target }));
     }
 });
 
